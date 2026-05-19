@@ -1,0 +1,22 @@
+services:
+  resume-generator:
+    build: .
+    container_name: resume-generator
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8787
+      RESUME_STATIC_DIR: /app/dist
+      # For a high-port same-origin pilot this can be *, but set an exact origin
+      # before putting the backend behind a public HTTPS frontend/domain.
+      TYPST_RENDER_ALLOWED_ORIGIN: ${TYPST_RENDER_ALLOWED_ORIGIN:-*}
+      RESUME_INTAKE_ATTEMPT_LIMIT: ${RESUME_INTAKE_ATTEMPT_LIMIT:-30}
+      RESUME_TAILORING_ATTEMPT_LIMIT: ${RESUME_TAILORING_ATTEMPT_LIMIT:-30}
+      RESUME_INTAKE_PDF_OCR_ENABLED: ${RESUME_INTAKE_PDF_OCR_ENABLED:-false}
+    ports:
+      - "${RESUME_HOST_PORT:-8790}:8787"
+    volumes:
+      - ./data:/app/data
