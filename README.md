@@ -2,7 +2,22 @@
 
 Resume Generator is a Vite + React + TypeScript app for building, importing, tailoring, and exporting resumes from a single browser workspace. It ships with a Node backend for Typst rendering, PDF/text intake, AI-assisted tailoring, observability, and lightweight pilot-ready deployment.
 
+Deploys live at: **[https://resume-tailor.paytonpei.top](https://resume-tailor.paytonpei.top)**
+
+## 🎬 Live Demo & Preview
+
+### Interactive Workflow (WebP Demo)
+![Interactive Workflow Demo](public/readme-assets/demo.webp)
+
+### 🎨 Design & Template Selection
+![Template & Design Workspace](public/readme-assets/design-templates.png)
+
+### ✍️ Structured Content Editor
+![Content Editor Workspace](public/readme-assets/content-editor.png)
+
+
 ## What It Does
+
 
 - Build and edit resumes in a local browser workspace.
 - Import resume content from pasted text or uploaded PDF files.
