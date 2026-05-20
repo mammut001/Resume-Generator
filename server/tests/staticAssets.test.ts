@@ -41,6 +41,18 @@ describe('static asset caching', () => {
     expect(assetResponse.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
   });
 
+  it('serves crawler files with explicit text and XML content types', async () => {
+    await startServer();
+
+    const [robotsResponse, sitemapResponse] = await Promise.all([
+      fetch(`${baseUrl}/robots.txt`),
+      fetch(`${baseUrl}/sitemap.xml`),
+    ]);
+
+    expect(robotsResponse.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+    expect(sitemapResponse.headers.get('content-type')).toBe('application/xml; charset=utf-8');
+  });
+
   async function startServer() {
     tempDirectory = mkdtempSync(join(tmpdir(), 'resume-static-assets-'));
     mkdirSync(join(tempDirectory, 'assets'), { recursive: true });
@@ -49,6 +61,8 @@ describe('static asset caching', () => {
     writeFileSync(join(tempDirectory, 'index.html'), '<!doctype html><html><body><div id="root"></div></body></html>');
     writeFileSync(join(tempDirectory, 'template-previews', 'basic-resume.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#fff"/></svg>');
     writeFileSync(join(tempDirectory, 'assets', 'index-DOaeUtR4.js'), 'console.log("ok")');
+    writeFileSync(join(tempDirectory, 'robots.txt'), 'User-agent: *\nAllow: /\n');
+    writeFileSync(join(tempDirectory, 'sitemap.xml'), '<?xml version="1.0" encoding="UTF-8"?><urlset />');
 
     server = createServer(createApp({ staticDir: tempDirectory }));
 
