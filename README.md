@@ -6,9 +6,6 @@ Deploys live at: **[https://resume-tailor.paytonpei.top](https://resume-tailor.p
 
 ## 🎬 Live Demo & Preview
 
-### Interactive Workflow (WebP Demo)
-![Interactive Workflow Demo](public/readme-assets/demo.webp)
-
 ### 🎨 Design & Template Selection
 ![Template & Design Workspace](public/readme-assets/design-templates.png)
 
