@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { getCurrentLocale, translate, useLocaleStore } from '@/i18n';
 import { trackAnalyticsEvent } from '@/lib/analytics';
-import { ResumeData, ResumeDocument, ResumeVersion, ResumeWorkspace } from '@/types/resume';
+import { ResumeData, ResumeDocument, ResumeIntakeWarning, ResumeVersion, ResumeWorkspace } from '@/types/resume';
 import { getDefaultResume } from '../data/defaultResume';
 import { loadResumeVersions, saveResumeVersion } from '../lib/resumeHistory';
 import { renderResumeToTypst } from '../data/resumeTemplates';
@@ -18,6 +18,7 @@ interface ResumeGeneratorState {
   renderStatus: RenderStatus;
   renderError: string | null;
   svgHtml: string | null;
+  lastIntakeWarnings: ResumeIntakeWarning[];
   versions: ResumeVersion[];
   hasDismissedOnboarding: boolean;
 
@@ -41,6 +42,8 @@ interface ResumeGeneratorState {
   removeProject: (id: string) => void;
   setSvgHtml: (html: string | null) => void;
   setRenderStatus: (status: RenderStatus, error?: string) => void;
+  setLastIntakeWarnings: (warnings: ResumeIntakeWarning[]) => void;
+  clearLastIntakeWarnings: () => void;
   createDocument: () => void;
   duplicateDocument: () => void;
   createDocumentFromResume: (title: string, resume: ResumeData) => void;
@@ -117,6 +120,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
   renderStatus: 'idle',
   renderError: null,
   svgHtml: null,
+  lastIntakeWarnings: [],
   versions: loadResumeVersions(),
   hasDismissedOnboarding: initialWorkspace.hasDismissedOnboarding,
 
@@ -326,6 +330,12 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
   setRenderStatus: (status, error) =>
     set({ renderStatus: status, renderError: error || null }),
 
+  setLastIntakeWarnings: (warnings) => set({
+    lastIntakeWarnings: warnings.map(warning => ({ ...warning })),
+  }),
+
+  clearLastIntakeWarnings: () => set({ lastIntakeWarnings: [] }),
+
   createDocument: () => {
     const now = new Date().toISOString();
     const document = createResumeDocument(getDefaultResume(getCurrentLocale()), { now });
@@ -341,6 +351,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
       svgHtml: null,
       renderStatus: 'idle',
       renderError: null,
+      lastIntakeWarnings: [],
     });
   },
 
@@ -365,6 +376,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
       svgHtml: null,
       renderStatus: 'idle',
       renderError: null,
+      lastIntakeWarnings: [],
     });
   },
 
@@ -386,6 +398,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
       svgHtml: null,
       renderStatus: 'idle',
       renderError: null,
+      lastIntakeWarnings: [],
     });
   },
 
@@ -419,6 +432,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
       svgHtml: null,
       renderStatus: 'idle',
       renderError: null,
+      lastIntakeWarnings: [],
     });
   },
 
@@ -441,6 +455,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
       svgHtml: null,
       renderStatus: 'idle',
       renderError: null,
+      lastIntakeWarnings: [],
     });
   },
 
@@ -485,7 +500,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
     const updated = normalizeResume(JSON.parse(JSON.stringify(version.resume)), get().resume.design);
     const typstSource = renderResumeSource(updated);
     get().saveActiveDocument(updated);
-    set({ resume: updated, typstSource });
+    set({ resume: updated, typstSource, lastIntakeWarnings: [] });
     get().saveVersion(translate(getCurrentLocale(), 'versionHistory.restoredLabel', { label: version.label }));
   },
 

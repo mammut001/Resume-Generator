@@ -36,6 +36,7 @@ describe('PDF intake flow', () => {
       renderStatus: 'idle',
       renderError: null,
       svgHtml: null,
+      lastIntakeWarnings: [],
     });
 
     fetchMock = vi.fn();
@@ -234,6 +235,73 @@ describe('PDF intake flow', () => {
     expect(container.textContent).toContain('Review required');
     expect(container.textContent).toContain('This PDF may contain more than one resume. Review the draft carefully before applying it.');
     expect(container.textContent).toContain('Apply draft');
+  });
+
+  it('stores and replaces intake warnings when a draft is applied', async () => {
+    useResumeGeneratorStore.getState().setLastIntakeWarnings([
+      { code: 'MODEL_GATEWAY_FAILED', message: 'Old fallback warning' },
+    ]);
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.endsWith('/usage')) {
+        return jsonResponse({ remainingAttempts: 3, limit: 3, resetAt: null });
+      }
+
+      if (url.endsWith('/pdf')) {
+        return jsonResponse({
+          kind: 'draft',
+          requiresPageSelection: false,
+          analysis: {
+            pageCount: 1,
+            extractedTextChars: 1200,
+            classification: 'single_resume',
+            signals: [],
+          },
+          draft: buildPdfDraft({
+            warnings: [
+              { code: 'PDF_USED_OCR', message: 'OCR was used.', fieldPath: 'summary' },
+              { code: 'PDF_OCR_LOW_CONFIDENCE', message: 'OCR confidence was low.' },
+            ],
+          }),
+        });
+      }
+
+      return jsonResponse({});
+    });
+
+    const onGoToContent = vi.fn();
+    await act(async () => {
+      root.render(<StartIntakeSection onGoToContent={onGoToContent} />);
+    });
+    await flushUi();
+
+    const uploadPdfButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Upload PDF'));
+    await act(async () => {
+      uploadPdfButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushUi();
+
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [new File(['scan'], 'scan.pdf', { type: 'application/pdf' })], configurable: true });
+
+    await act(async () => {
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await flushUi();
+
+    await act(async () => {
+      const applyButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Apply draft'));
+      applyButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushUi();
+
+    expect(onGoToContent).toHaveBeenCalled();
+    expect(useResumeGeneratorStore.getState().lastIntakeWarnings).toEqual([
+      { code: 'PDF_USED_OCR', message: 'OCR was used.', fieldPath: 'summary' },
+      { code: 'PDF_OCR_LOW_CONFIDENCE', message: 'OCR confidence was low.' },
+    ]);
   });
 
   it('preserves the current template and design when applying an intake draft', () => {

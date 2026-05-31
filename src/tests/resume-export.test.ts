@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultResume } from '@/features/resume-generator/data/defaultResume';
 import { buildResumeExportFileName } from '@/features/resume-generator/lib/exportResume';
-import { getExportReadiness } from '@/features/resume-generator/lib/exportReadiness';
+import { analyzeExportReadiness } from '@/features/resume-generator/lib/exportReadiness';
 
 describe('resume export helpers', () => {
   it('generates stable slugified PDF and Typst filenames', () => {
@@ -37,7 +37,7 @@ describe('resume export helpers', () => {
   });
 
   it('reports readiness checks without blocking export', () => {
-    const readiness = getExportReadiness({
+    const resume = {
       ...defaultResume,
       personal: {
         ...defaultResume.personal,
@@ -48,16 +48,23 @@ describe('resume export helpers', () => {
       experience: [],
       education: [],
       skills: [],
+      projects: [],
+    };
+    const readiness = analyzeExportReadiness({
+      resume,
+      typstSource: '#let resume = (:)',
+      renderStatus: 'idle',
     });
 
-    expect(readiness.status).toBe('review');
+    expect(readiness.level).toBe('blocked');
     expect(readiness.issues.map(issue => issue.code)).toEqual([
-      'missing_name',
-      'missing_email',
-      'empty_summary',
-      'no_experience',
-      'no_education',
-      'no_skills',
+      'MISSING_NAME',
+      'MISSING_EMAIL',
+      'SUMMARY_MISSING',
+      'NO_RESUME_BODY',
+      'NO_EXPERIENCE',
+      'NO_EDUCATION',
+      'NO_SKILLS',
     ]);
   });
 });

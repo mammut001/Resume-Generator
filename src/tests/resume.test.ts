@@ -83,6 +83,25 @@ describe('resumeToTypst', () => {
     expect(result).toContain('== 教育经历');
   });
 
+  it('adds Chinese language hints for Chinese Typst output', () => {
+    const zhResume = getDefaultResume('zh-CN');
+    const basic = renderResumeToTypst(zhResume, 'clean-professional', 'zh-CN');
+    const renderCv = renderResumeToTypst(zhResume, 'rendercv', 'zh-CN');
+    const brilliant = renderResumeToTypst(zhResume, 'brilliant-cv', 'zh-CN');
+
+    expect(basic).toContain('#set text(lang: "zh")');
+    expect(renderCv).toContain('#set text(lang: "zh")');
+    expect(brilliant).toContain('#set text(lang: "zh")');
+  });
+
+  it('does not render a visible escape slash in email links', () => {
+    const result = renderResumeToTypst(defaultResume, 'rendercv');
+
+    expect(result).toContain('alex.chen@email.com');
+    expect(result).not.toContain('alex.chen\\@email.com');
+    expect(result).not.toContain('\\@email.com');
+  });
+
   it('applies design settings to Typst output', () => {
     const result = renderResumeToTypst(
       {

@@ -341,6 +341,24 @@ export type TranslationSchema = {
       noSkills: string;
     };
   };
+  exportReadiness: {
+    title: string;
+    readyTitle: string;
+    needsReviewTitle: string;
+    blockedTitle: string;
+    scoreLabel: string;
+    summary: string;
+    needsAttention: string;
+    passedChecks: string;
+    showAll: string;
+    showLess: string;
+    exportAnyway: string;
+    technicalBlock: string;
+    issues: Record<string, { title: string; description: string }>;
+    passes: Record<string, string>;
+    sections: Record<string, string>;
+    severity: Record<string, string>;
+  };
   toast: {
     copiedToClipboard: string;
     failedToCopy: string;

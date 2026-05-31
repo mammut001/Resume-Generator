@@ -81,9 +81,69 @@ describe('ExportSection', () => {
     expect(container.textContent).toContain('Basic Resume');
     expect(container.textContent).toContain('US Letter');
     expect(container.textContent).toContain('alex-chen-master-resume.pdf');
+    expect(container.textContent).toContain('Export readiness');
+    expect(container.textContent).toContain('100/100');
     expect(container.textContent).toContain('Ready to export');
+    expect(container.textContent).toContain('Passed checks');
     expect(getButton('Download PDF')).toBeTruthy();
     expect(container.textContent).toContain('Advanced source export: alex-chen-master-resume.typ');
+  });
+
+  it('shows blocked readiness and can expand hidden issues', async () => {
+    const currentState = useResumeGeneratorStore.getState();
+    const blockedResume = {
+      ...currentState.resume,
+      personal: {
+        ...currentState.resume.personal,
+        fullName: '',
+        headline: '',
+        email: '',
+        phone: '',
+        location: '',
+      },
+      summary: '',
+      experience: [],
+      education: [],
+      skills: [],
+      projects: [],
+    };
+    useResumeGeneratorStore.setState({
+      ...currentState,
+      resume: blockedResume,
+      typstSource: '',
+      renderStatus: 'error',
+      renderError: 'Preview failed',
+      svgHtml: null,
+    });
+
+    await renderExportTab();
+
+    expect(container.textContent).toContain('Export readiness');
+    expect(container.textContent).toContain('Not ready');
+    expect(container.textContent).toContain('Name is missing');
+    expect(container.textContent).toContain('PDF export is disabled until the technical blocker is fixed.');
+    expect(getButton('Download PDF').disabled).toBe(true);
+
+    expect(container.textContent).not.toContain('No experience section');
+    await act(async () => {
+      getButton('Show all').click();
+    });
+    await flushUi();
+
+    expect(container.textContent).toContain('No experience section');
+    expect(getButton('Show less')).toBeTruthy();
+  });
+
+  it('shows OCR intake warnings in export readiness', async () => {
+    useResumeGeneratorStore.getState().setLastIntakeWarnings([
+      { code: 'PDF_USED_OCR', message: 'OCR was used', fieldPath: 'summary' },
+    ]);
+
+    await renderExportTab();
+
+    expect(container.textContent).toContain('Needs review');
+    expect(container.textContent).toContain('OCR was used for this resume');
+    expect(container.textContent).toContain('Review names, dates, and bullet text carefully before exporting.');
   });
 
   it('shows a completion state after PDF export succeeds', async () => {
@@ -148,6 +208,7 @@ describe('ExportSection', () => {
       renderStatus: 'idle',
       renderError: null,
       svgHtml: null,
+      lastIntakeWarnings: [],
       hasDismissedOnboarding: true,
     });
   }

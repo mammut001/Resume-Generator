@@ -25,6 +25,9 @@ const templateAliases: Record<string, string> = {
   'modern-compact': 'rendercv',
 };
 
+const LATIN_FONT_FALLBACK = 'New Computer Modern';
+const ZH_TYPST_LANG = 'zh';
+
 export const resumeTemplates: ResumeTemplate[] = [
   {
     id: 'basic-resume',
@@ -74,7 +77,6 @@ function escapeTypst(text: string): string {
     .replace(/%/g, '\\%')
     .replace(/#/g, '\\#')
     .replace(/\$/g, '\\$')
-    .replace(/@/g, '\\@')
     .replace(/\[/g, '\\[')
     .replace(/\]/g, '\\]');
 }
@@ -103,6 +105,18 @@ function dateRange(start?: string, end?: string, current?: boolean, locale: Supp
 
 function normalizeHexColor(color: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(color) ? color : resumeDesignDefaults.accentColor;
+}
+
+function isChineseLocale(locale: SupportedLocale): boolean {
+  return locale === 'zh-CN';
+}
+
+function typstLocalePrelude(locale: SupportedLocale): string {
+  if (!isChineseLocale(locale)) {
+    return '';
+  }
+
+  return `#set text(lang: ${typstString(ZH_TYPST_LANG)})\n\n`;
 }
 
 function pagePaper(resume: ResumeData): string {
@@ -136,6 +150,8 @@ function basicResumeTemplate(resume: ResumeData, locale: SupportedLocale): strin
   ]).join('\n\n');
 
   return `#import "@preview/basic-resume:0.2.9": *
+
+${typstLocalePrelude(locale)}
 
 #show: resume.with(
   author: ${typstString(resume.personal.fullName)},
@@ -188,25 +204,27 @@ function renderCvTemplate(resume: ResumeData, locale: SupportedLocale): string {
   const accentColor = normalizeHexColor(resume.design?.accentColor || resumeDesignDefaults.accentColor);
   const connections = compactLines([
     resume.personal.location,
-    resume.personal.email ? `#link(${typstString(`mailto:${resume.personal.email}`)})${typstContent(resume.personal.email)}` : '',
+    resume.personal.email ? `#link(${typstString(`mailto:${resume.personal.email}`)}, ${typstString(resume.personal.email)})` : '',
     resume.personal.phone,
-    resume.personal.linkedin ? `#link(${typstString(`https://${resume.personal.linkedin}`)})${typstContent(resume.personal.linkedin)}` : '',
-    resume.personal.github ? `#link(${typstString(`https://${resume.personal.github}`)})${typstContent(resume.personal.github)}` : '',
-    resume.personal.website ? `#link(${typstString(`https://${resume.personal.website}`)})${typstContent(resume.personal.website)}` : '',
+    resume.personal.linkedin ? `#link(${typstString(`https://${resume.personal.linkedin}`)}, ${typstString(resume.personal.linkedin)})` : '',
+    resume.personal.github ? `#link(${typstString(`https://${resume.personal.github}`)}, ${typstString(resume.personal.github)})` : '',
+    resume.personal.website ? `#link(${typstString(`https://${resume.personal.website}`)}, ${typstString(resume.personal.website)})` : '',
   ]).map(item => `[${item}]`).join(',\n  ');
 
   return `#import "@preview/rendercv:0.3.0": *
+
+${typstLocalePrelude(locale)}
 
 #show: rendercv.with(
   name: ${typstString(resume.personal.fullName)},
   page-size: ${typstString(resume.design?.pageSize === 'a4' ? 'a4' : 'us-letter')},
   colors-name: rgb(${typstRawString(accentColor)}),
   colors-section-titles: rgb(${typstRawString(accentColor)}),
-  typography-font-family-body: "New Computer Modern",
-  typography-font-family-name: "New Computer Modern",
-  typography-font-family-section-titles: "New Computer Modern",
-  typography-font-family-headline: "New Computer Modern",
-  typography-font-family-connections: "New Computer Modern",
+  typography-font-family-body: ${typstString(LATIN_FONT_FALLBACK)},
+  typography-font-family-name: ${typstString(LATIN_FONT_FALLBACK)},
+  typography-font-family-section-titles: ${typstString(LATIN_FONT_FALLBACK)},
+  typography-font-family-headline: ${typstString(LATIN_FONT_FALLBACK)},
+  typography-font-family-connections: ${typstString(LATIN_FONT_FALLBACK)},
 )
 
 = ${escapeTypst(resume.personal.fullName)}
@@ -266,6 +284,8 @@ function brilliantCvTemplate(resume: ResumeData, locale: SupportedLocale): strin
 
   return `#import "@preview/brilliant-cv:4.0.1": cv, cv-section, cv-entry, cv-skill
 
+${typstLocalePrelude(locale)}
+
 #let metadata = (
   header_quote: ${typstString(resume.personal.headline)},
   cv_footer: ${typstString(resume.title)},
@@ -277,8 +297,8 @@ function brilliantCvTemplate(resume: ResumeData, locale: SupportedLocale): strin
     paper_size: ${typstString(resume.design?.pageSize === 'a4' ? 'a4' : 'us-letter')},
     date_width: "3.8cm",
     fonts: (
-      regular_fonts: ("New Computer Modern",),
-      header_font: "New Computer Modern",
+      regular_fonts: (${typstString(LATIN_FONT_FALLBACK)},),
+      header_font: ${typstString(LATIN_FONT_FALLBACK)},
     ),
     header: (
       header_align: "left",

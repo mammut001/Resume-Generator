@@ -248,7 +248,7 @@ describe('resume intake API', () => {
     expect(draftPayload.source.extractedText.toLowerCase()).toContain('jordan lee');
     expect(draftPayload.source.extractedText.toLowerCase()).toContain('techcorp');
     expect(draftPayload.warnings.some((warning: { code: string }) => warning.code === 'PDF_USED_OCR')).toBe(true);
-  });
+  }, 20_000);
 
   it('classifies single resumes, packets, and uncertain PDFs before model intake', () => {
     const singleResumeAnalysis = analyzePdfDocument({

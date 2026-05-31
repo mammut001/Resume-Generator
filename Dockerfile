@@ -19,7 +19,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
+  && apt-get install -y --no-install-recommends ca-certificates curl fontconfig fonts-noto-cjk xz-utils \
   && case "${TARGETARCH:-amd64}" in \
     amd64) TYPST_ARCH="x86_64-unknown-linux-musl" ;; \
     arm64) TYPST_ARCH="aarch64-unknown-linux-musl" ;; \

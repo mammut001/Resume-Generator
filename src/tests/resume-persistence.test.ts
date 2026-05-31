@@ -123,6 +123,47 @@ describe('resumeGeneratorStore document workspace', () => {
     vi.resetModules();
   });
 
+  it('starts with no last intake warnings and stores a defensive copy', async () => {
+    const { useResumeGeneratorStore } = await import('@/features/resume-generator/store/resumeGeneratorStore');
+    const warning = { code: 'PDF_USED_OCR', message: 'OCR was used', fieldPath: 'summary' };
+    const warnings = [warning];
+
+    expect(useResumeGeneratorStore.getState().lastIntakeWarnings).toEqual([]);
+
+    useResumeGeneratorStore.getState().setLastIntakeWarnings(warnings);
+    warning.message = 'mutated outside store';
+    warnings.push({ code: 'MODEL_GATEWAY_FAILED', message: 'fallback' });
+
+    expect(useResumeGeneratorStore.getState().lastIntakeWarnings).toEqual([
+      { code: 'PDF_USED_OCR', message: 'OCR was used', fieldPath: 'summary' },
+    ]);
+  });
+
+  it('clears last intake warnings explicitly and keeps them during manual edits', async () => {
+    const { useResumeGeneratorStore } = await import('@/features/resume-generator/store/resumeGeneratorStore');
+    const store = useResumeGeneratorStore.getState();
+
+    store.setLastIntakeWarnings([{ code: 'PDF_OCR_LOW_CONFIDENCE', message: 'Low OCR' }]);
+    store.updateSummary('Manual edit should not clear warning metadata.');
+
+    expect(useResumeGeneratorStore.getState().lastIntakeWarnings).toEqual([
+      { code: 'PDF_OCR_LOW_CONFIDENCE', message: 'Low OCR' },
+    ]);
+
+    useResumeGeneratorStore.getState().clearLastIntakeWarnings();
+
+    expect(useResumeGeneratorStore.getState().lastIntakeWarnings).toEqual([]);
+  });
+
+  it('clears last intake warnings when creating a new document', async () => {
+    const { useResumeGeneratorStore } = await import('@/features/resume-generator/store/resumeGeneratorStore');
+
+    useResumeGeneratorStore.getState().setLastIntakeWarnings([{ code: 'PDF_USED_OCR', message: 'OCR was used' }]);
+    useResumeGeneratorStore.getState().createDocument();
+
+    expect(useResumeGeneratorStore.getState().lastIntakeWarnings).toEqual([]);
+  });
+
   it('creates documents and makes the new document active', async () => {
     const { useResumeGeneratorStore } = await import('@/features/resume-generator/store/resumeGeneratorStore');
     const initialDocumentCount = useResumeGeneratorStore.getState().documents.length;

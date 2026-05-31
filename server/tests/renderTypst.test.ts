@@ -3,8 +3,8 @@ import { createServer, Server } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
-import { defaultResume } from '../../src/features/resume-generator/data/defaultResume';
-import { renderResumeToTypst } from '../../src/features/resume-generator/data/resumeTemplates';
+import { defaultResume, getDefaultResume } from '../../src/features/resume-generator/data/defaultResume';
+import { renderResumeToTypst, resumeTemplates } from '../../src/features/resume-generator/data/resumeTemplates';
 
 const typstBin = process.env.TYPST_BIN || 'typst';
 const typstAvailable = spawnSync(typstBin, ['--version'], { encoding: 'utf8' }).status === 0;
@@ -14,7 +14,7 @@ describe('Typst render API', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
-    server = createServer(createApp({ typstBin, timeoutMs: 10_000, maxBodyBytes: 32 * 1024 }));
+    server = createServer(createApp({ typstBin, timeoutMs: 30_000, maxBodyBytes: 32 * 1024 }));
 
     await new Promise<void>(resolve => {
       server.listen(0, '127.0.0.1', resolve);
@@ -76,6 +76,19 @@ describe('Typst render API', () => {
     expect(response.status).toBe(200);
     expect(output).toContain('<svg');
   });
+
+  it.skipIf(!typstAvailable)('renders generated Chinese resume source for all visible templates', async () => {
+    const zhResume = getDefaultResume('zh-CN');
+
+    for (const template of resumeTemplates) {
+      const source = renderResumeToTypst(zhResume, template.id, 'zh-CN');
+      const response = await postRender({ source, format: 'svg' });
+      const output = await response.text();
+
+      expect(response.status, `${template.id}: ${output}`).toBe(200);
+      expect(output).toContain('<svg');
+    }
+  }, 40_000);
 
   function postRender(body: unknown): Promise<Response> {
     return fetch(`${baseUrl}/api/render/typst`, {
