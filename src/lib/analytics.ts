@@ -1,8 +1,11 @@
 export type AnalyticsEventName =
+  | 'page_viewed'
   | 'onboarding_viewed'
   | 'onboarding_dismissed'
+  | 'start_action_clicked'
   | 'intake_started'
   | 'intake_completed'
+  | 'intake_failed'
   | 'pdf_packet_blocked'
   | 'pdf_page_range_selected'
   | 'tailoring_started'
@@ -12,6 +15,7 @@ export type AnalyticsEventName =
   | 'document_created'
   | 'document_duplicated'
   | 'document_deleted'
+  | 'export_tab_viewed'
   | 'export_started'
   | 'export_completed'
   | 'export_failed';

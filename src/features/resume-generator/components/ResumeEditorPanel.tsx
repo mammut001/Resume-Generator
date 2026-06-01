@@ -25,6 +25,7 @@ import {
   Save,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   Trash2,
   UserRound,
   Wrench,
@@ -64,13 +65,24 @@ import { ResumeDocumentSwitcher } from './ResumeDocumentSwitcher';
 import { ResumeTailoringPanel } from './ResumeTailoringPanel';
 import { useResumeGeneratorStore } from '../store/resumeGeneratorStore';
 
-const inputClass = 'h-8 border-white/10 bg-black/25 text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400';
-const textareaClass = 'border-white/10 bg-black/25 text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400';
-const ghostButtonClass = 'border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08] hover:text-white';
+const inputClass = 'h-8 border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-blue-500';
+const textareaClass = 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-blue-500';
+const ghostButtonClass = 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900';
 
 type StartIntakeMode = 'text' | 'pdf';
 type IntakeStatus = 'idle' | 'uploading' | 'extracting' | 'generating' | 'needsSelection' | 'error' | 'success';
 type ExportStatus = 'idle' | 'generating' | 'success' | 'error';
+type IntakeFailureReason = 'validation' | 'quota' | 'network' | 'server' | 'unknown';
+
+function classifyIntakeFailureReason(error: unknown): IntakeFailureReason {
+  const message = (error instanceof Error ? error.message : String(error ?? '')).toLowerCase();
+  if (!message) return 'unknown';
+  if (/quota|limit|exhaust|too many|429/.test(message)) return 'quota';
+  if (/network|fetch|connection|offline|timeout|timed out/.test(message)) return 'network';
+  if (/server|internal|unavailable|gateway|50\d/.test(message)) return 'server';
+  if (/valid|minimum|too short|unsupported|invalid|required|empty/.test(message)) return 'validation';
+  return 'unknown';
+}
 
 export function ResumeEditorPanel() {
   const { resume, documents, renderStatus, hasDismissedOnboarding, dismissOnboarding } = useResumeGeneratorStore();
@@ -79,13 +91,20 @@ export function ResumeEditorPanel() {
   const isStarterContent = isStarterResume(resume, locale);
   const [activeTab, setActiveTab] = React.useState(showFirstRunOnboarding ? 'start' : 'content');
 
+  const handleTabChange = React.useCallback((value: string) => {
+    setActiveTab(value);
+    if (value === 'export') {
+      trackAnalyticsEvent('export_tab_viewed', {});
+    }
+  }, []);
+
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col border-b border-zinc-800 bg-[#10100f] text-slate-100 shadow-2xl shadow-black/30 lg:flex-none lg:border-b-0 lg:border-r lg:w-[520px] lg:min-w-[430px] lg:max-w-[560px]">
-      <div className="border-b border-white/10 bg-[#171612] px-4 pb-3 pt-4">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col border-b border-slate-200 bg-slate-50 text-slate-900 shadow-2xl shadow-slate-400/20 lg:flex-none lg:border-b-0 lg:border-r lg:w-[520px] lg:min-w-[430px] lg:max-w-[560px]">
+      <div className="border-b border-slate-200 bg-white px-4 pb-3 pt-4">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/80">{t('editor.eyebrow')}</p>
-            <h1 className="mt-1 line-clamp-2 text-lg font-semibold leading-6 text-white" title={resume.title}>{resume.title}</h1>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600">{t('editor.eyebrow')}</p>
+            <h1 className="mt-1 line-clamp-2 text-lg font-semibold leading-6 text-slate-900" title={resume.title}>{resume.title}</h1>
           </div>
 
           <div className="w-full space-y-2 sm:w-[156px] sm:shrink-0">
@@ -98,22 +117,22 @@ export function ResumeEditorPanel() {
         <ResumeDocumentSwitcher className="mt-3" />
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b border-white/10 bg-[#171612] px-4 py-3">
-          <TabsList className="grid h-auto min-h-9 w-full grid-cols-5 rounded-md border border-white/10 bg-black/30 p-1 text-slate-400">
-            <TabsTrigger value="start" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none sm:text-sm">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex min-h-0 flex-1 flex-col">
+        <div className="border-b border-slate-200 bg-white px-4 py-3">
+          <TabsList className="grid h-auto min-h-9 w-full grid-cols-5 rounded-md border border-slate-200 bg-slate-100 p-1 text-slate-500">
+            <TabsTrigger value="start" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
               {t('tabs.start')}
             </TabsTrigger>
-            <TabsTrigger value="content" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none sm:text-sm">
+            <TabsTrigger value="content" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
               {t('tabs.content')}
             </TabsTrigger>
-            <TabsTrigger value="design" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none sm:text-sm">
+            <TabsTrigger value="design" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
               {t('tabs.design')}
             </TabsTrigger>
-            <TabsTrigger value="tailor" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none sm:text-sm">
+            <TabsTrigger value="tailor" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
               {t('tabs.tailor')}
             </TabsTrigger>
-            <TabsTrigger value="export" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none sm:text-sm">
+            <TabsTrigger value="export" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
               {t('tabs.export')}
             </TabsTrigger>
           </TabsList>
@@ -164,17 +183,17 @@ function LanguageSwitcher() {
 
   return (
     <div className="space-y-1">
-      <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('localeSwitcher.label')}</Label>
+      <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('localeSwitcher.label')}</Label>
       <Select value={locale} onValueChange={value => setLocale(value as SupportedLocale)}>
-        <SelectTrigger aria-label={t('localeSwitcher.label')} className="h-8 border-white/10 bg-black/25 px-2.5 text-xs text-slate-100 ring-offset-0 focus:ring-1 focus:ring-cyan-400 focus:ring-offset-0">
+        <SelectTrigger aria-label={t('localeSwitcher.label')} className="h-8 border-slate-200 bg-white px-2.5 text-xs text-slate-900 ring-offset-0 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0">
           <div className="flex items-center gap-2">
-            <Languages className="h-3.5 w-3.5 text-cyan-300" />
+            <Languages className="h-3.5 w-3.5 text-blue-600" />
             <SelectValue />
           </div>
         </SelectTrigger>
-        <SelectContent className="border-white/10 bg-[#171612] text-slate-100">
+        <SelectContent className="border-slate-200 bg-white text-slate-900">
           {SUPPORTED_LOCALES.map(item => (
-            <SelectItem key={item} value={item} className="focus:bg-white/10 focus:text-white">
+            <SelectItem key={item} value={item} className="focus:bg-slate-100 focus:text-slate-900">
               {LOCALE_LABELS[item]}
             </SelectItem>
           ))}
@@ -188,14 +207,14 @@ function StatusPill({ status }: { status: 'idle' | 'rendering' | 'success' | 'er
   const { t } = useI18n();
 
   const statusConfig = {
-    idle: { label: t('status.idle'), className: 'border-slate-500/40 text-slate-300', dot: 'bg-slate-400' },
-    rendering: { label: t('status.rendering'), className: 'border-cyan-400/40 text-cyan-200', dot: 'bg-cyan-300' },
-    success: { label: t('status.ready'), className: 'border-emerald-400/40 text-emerald-200', dot: 'bg-emerald-300' },
-    error: { label: t('status.error'), className: 'border-rose-400/40 text-rose-200', dot: 'bg-rose-300' },
+    idle: { label: t('status.idle'), className: 'border-slate-500/40 text-slate-600', dot: 'bg-slate-400' },
+    rendering: { label: t('status.rendering'), className: 'border-blue-300 text-blue-600', dot: 'bg-blue-600' },
+    success: { label: t('status.ready'), className: 'border-emerald-200 text-emerald-700', dot: 'bg-emerald-300' },
+    error: { label: t('status.error'), className: 'border-rose-200 text-rose-700', dot: 'bg-rose-300' },
   }[status];
 
   return (
-    <Badge variant="outline" className={cn('gap-1.5 rounded border bg-black/20 px-2 py-1 text-[11px]', statusConfig.className)}>
+    <Badge variant="outline" className={cn('gap-1.5 rounded border bg-slate-50 px-2 py-1 text-[11px]', statusConfig.className)}>
       {status === 'rendering' ? <Loader2 className="h-3 w-3 animate-spin" /> : <span className={cn('h-1.5 w-1.5 rounded-full', statusConfig.dot)} />}
       {statusConfig.label}
     </Badge>
@@ -222,13 +241,13 @@ function ControlGroup({
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
 
   return (
-    <section className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.035] shadow-lg shadow-black/10">
-      <div className="flex items-center gap-2 border-b border-white/10 bg-white/[0.025] px-3 py-2">
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-lg shadow-slate-300/20">
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
         <button type="button" onClick={() => setIsOpen(open => !open)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-          {isOpen ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
-          <Icon className="h-4 w-4 text-cyan-300" />
-          <span className="truncate text-sm font-semibold text-slate-100">{title}</span>
-          {typeof count === 'number' && <Badge className="h-5 rounded bg-white/10 px-1.5 text-[10px] text-slate-200 hover:bg-white/10">{count}</Badge>}
+          {isOpen ? <ChevronDown className="h-4 w-4 text-slate-500" /> : <ChevronRight className="h-4 w-4 text-slate-500" />}
+          <Icon className="h-4 w-4 text-blue-600" />
+          <span className="truncate text-sm font-semibold text-slate-900">{title}</span>
+          {typeof count === 'number' && <Badge className="h-5 rounded bg-slate-200 px-1.5 text-[10px] text-slate-700 hover:bg-slate-200">{count}</Badge>}
           {meta && <span className="hidden truncate text-xs text-slate-500 sm:block">{meta}</span>}
         </button>
         {action}
@@ -241,14 +260,14 @@ function ControlGroup({
 function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
   return (
     <div className={cn('space-y-1.5', className)}>
-      <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</Label>
+      <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</Label>
       {children}
     </div>
   );
 }
 
 function EmptyState({ label }: { label: string }) {
-  return <div className="rounded-md border border-dashed border-white/10 bg-black/10 px-3 py-5 text-center text-xs text-slate-500">{label}</div>;
+  return <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-5 text-center text-xs text-slate-500">{label}</div>;
 }
 
 export function StartIntakeSection({
@@ -268,6 +287,7 @@ export function StartIntakeSection({
   const activeTemplateName = t(activeTemplate.nameKey);
   const pdfInputRef = React.useRef<HTMLInputElement | null>(null);
   const pdfStatusTimeoutsRef = React.useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const paragraphTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const [activeMode, setActiveMode] = React.useState<StartIntakeMode>('text');
   const [usage, setUsage] = React.useState<ResumeIntakeUsage | null>(null);
   const [text, setText] = React.useState('');
@@ -301,6 +321,13 @@ export function StartIntakeSection({
   }, []);
 
   React.useEffect(() => () => clearPdfStatusTimers(), [clearPdfStatusTimers]);
+
+  // Focus the paragraph textarea whenever the user lands in text intake mode so the
+  // "Paste text" action feels like it opens the flow rather than just toggling it.
+  React.useEffect(() => {
+    if (activeMode !== 'text') return;
+    paragraphTextareaRef.current?.focus();
+  }, [activeMode]);
 
   const hydratePageSelectionInputs = React.useCallback((response: PdfSelectionRequiredResponse) => {
     setPageStart(String(response.selectedPageRange?.start || 1));
@@ -357,6 +384,7 @@ export function StartIntakeSection({
       clearPdfStatusTimers();
       setError(formatError(err));
       setIntakeStatus('error');
+      trackAnalyticsEvent('intake_failed', { source: 'pdf', reason: classifyIntakeFailureReason(err) });
       await refreshUsage();
     }
   }, [applyPdfResponse, clearPdfStatusTimers, refreshUsage]);
@@ -387,6 +415,7 @@ export function StartIntakeSection({
     if (text.trim().length < 20) {
       setError(t('intake.paragraph.minimumLengthError'));
       setIntakeStatus('error');
+      trackAnalyticsEvent('intake_failed', { source: 'text', reason: 'validation' });
       return;
     }
 
@@ -410,6 +439,7 @@ export function StartIntakeSection({
     } catch (err) {
       setError(formatError(err));
       setIntakeStatus('error');
+      trackAnalyticsEvent('intake_failed', { source: 'text', reason: classifyIntakeFailureReason(err) });
       await refreshUsage();
     }
   };
@@ -436,6 +466,7 @@ export function StartIntakeSection({
       setDraft(null);
       setError(t('intake.pdf.invalidFileError'));
       setIntakeStatus('error');
+      trackAnalyticsEvent('intake_failed', { source: 'pdf', reason: 'validation' });
       return;
     }
 
@@ -496,9 +527,12 @@ export function StartIntakeSection({
       {showOnboarding ? (
         <FirstRunWelcomePanel
           onDismiss={onDismissOnboarding}
+          onStartWithSample={() => {
+            onDismissOnboarding?.();
+            onGoToContent();
+          }}
           onPasteText={() => setMode('text')}
           onUploadPdf={handleChoosePdf}
-          onStartManually={onGoToContent}
           onTailorLater={onGoToTailor}
         />
       ) : null}
@@ -545,6 +579,7 @@ export function StartIntakeSection({
       {activeMode === 'text' ? (
         <ControlGroup title={t('sections.paragraphIntake')} icon={FileText} meta={t('intake.paragraph.sourceMaterial')} defaultOpen>
           <Textarea
+            ref={paragraphTextareaRef}
             className={cn(textareaClass, 'min-h-36 resize-none')}
             value={text}
             onChange={event => setText(event.target.value)}
@@ -553,40 +588,40 @@ export function StartIntakeSection({
           />
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-slate-500">{t('intake.paragraph.attemptsHelper')}</p>
-            <Button className="h-9 bg-cyan-300 text-slate-950 hover:bg-cyan-200" onClick={handleGenerate} disabled={isBusy || Boolean(draft) || text.trim().length < 20 || usage?.remainingAttempts === 0}>
+            <Button className="h-9 bg-blue-600 text-white hover:bg-blue-500" onClick={handleGenerate} disabled={isBusy || Boolean(draft) || text.trim().length < 20 || usage?.remainingAttempts === 0}>
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
               {t('actions.generateDraft')}
             </Button>
           </div>
           <IntakeStatusNotice mode="text" status={intakeStatus} />
-          {error && <p className="rounded-md border border-rose-400/20 bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200">{error}</p>}
+          {error && <p className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs text-rose-700">{error}</p>}
         </ControlGroup>
       ) : (
         <ControlGroup title={t('sections.pdfIntake')} icon={FileUp} meta={t('intake.pdf.uploadMeta')} defaultOpen>
           <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handlePdfSelected} />
-          <div className="rounded-md border border-white/10 bg-black/20 p-3">
-            <p className="text-sm font-medium text-slate-100">{t('intake.pdf.uploadTitle')}</p>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-medium text-slate-900">{t('intake.pdf.uploadTitle')}</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">{t('intake.pdf.uploadDescription')}</p>
-            {selectedPdfName && <p className="mt-3 text-xs text-slate-400">{t('intake.pdf.selectedFile', { fileName: selectedPdfName })}</p>}
+            {selectedPdfName && <p className="mt-3 text-xs text-slate-500">{t('intake.pdf.selectedFile', { fileName: selectedPdfName })}</p>}
           </div>
           {pageSelection && (
-            <div className="space-y-3 rounded-md border border-amber-300/20 bg-amber-400/10 p-3">
+            <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-amber-50">{t('intake.pdf.selectionTitle')}</p>
-                  <p className="mt-1 text-xs leading-5 text-amber-100/80">{t('intake.pdf.selectionDescription')}</p>
+                  <p className="text-sm font-medium text-amber-700">{t('intake.pdf.selectionTitle')}</p>
+                  <p className="mt-1 text-xs leading-5 text-amber-700">{t('intake.pdf.selectionDescription')}</p>
                 </div>
-                <Badge variant="outline" className="border-amber-300/30 bg-amber-400/10 text-amber-50">
+                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
                   {t(getPdfAnalysisLabelKey(pageSelection.analysis))}
                 </Badge>
               </div>
 
-              <p className="text-xs text-amber-100/80">{t('intake.pdf.pageCount', { count: pageSelection.analysis.pageCount })}</p>
+              <p className="text-xs text-amber-700">{t('intake.pdf.pageCount', { count: pageSelection.analysis.pageCount })}</p>
 
               {pageSelection.warnings.length > 0 && (
                 <div className="space-y-1.5">
                   {pageSelection.warnings.map(warning => (
-                    <div key={`${warning.code}-${warning.fieldPath || warning.message}`} className="flex gap-2 rounded-md border border-amber-300/20 bg-black/15 px-2 py-1.5 text-xs text-amber-50">
+                    <div key={`${warning.code}-${warning.fieldPath || warning.message}`} className="flex gap-2 rounded-md border border-amber-200 bg-slate-50 px-2 py-1.5 text-xs text-amber-700">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       <span>{formatIntakeWarningMessage(warning, t)}</span>
                     </div>
@@ -597,7 +632,7 @@ export function StartIntakeSection({
               {pageSelection.analysis.signals.length > 0 && (
                 <div className="space-y-1.5">
                   {pageSelection.analysis.signals.map(signal => (
-                    <div key={signal.code} className="rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-xs text-slate-300">
+                    <div key={signal.code} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
                       {signal.message}
                     </div>
                   ))}
@@ -629,9 +664,9 @@ export function StartIntakeSection({
                 </Field>
               </div>
 
-              <p className="text-xs text-amber-100/80">{t('intake.pdf.pageRangeHelper')}</p>
+              <p className="text-xs text-amber-700">{t('intake.pdf.pageRangeHelper')}</p>
 
-              <Button className="h-9 w-full bg-cyan-300 text-slate-950 hover:bg-cyan-200" onClick={handleGenerateFromSelectedPages} disabled={isBusy || !pdfFile}>
+              <Button className="h-9 w-full bg-blue-600 text-white hover:bg-blue-500" onClick={handleGenerateFromSelectedPages} disabled={isBusy || !pdfFile}>
                 {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
                 {t('actions.generateDraftFromPages')}
               </Button>
@@ -639,13 +674,13 @@ export function StartIntakeSection({
           )}
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-slate-500">{t('intake.pdf.helper')}</p>
-            <Button className="h-9 bg-cyan-300 text-slate-950 hover:bg-cyan-200" onClick={handleChoosePdf} disabled={isBusy || Boolean(draft) || usage?.remainingAttempts === 0}>
+            <Button className="h-9 bg-blue-600 text-white hover:bg-blue-500" onClick={handleChoosePdf} disabled={isBusy || Boolean(draft) || usage?.remainingAttempts === 0}>
               {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
               {selectedPdfName ? t('actions.chooseAnotherPdf') : t('actions.choosePdf')}
             </Button>
           </div>
           <IntakeStatusNotice mode="pdf" status={intakeStatus} fileName={selectedPdfName} />
-          {error && <p className="rounded-md border border-rose-400/20 bg-rose-500/10 px-2 py-1.5 text-xs text-rose-200">{error}</p>}
+          {error && <p className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs text-rose-700">{error}</p>}
         </ControlGroup>
       )}
 
@@ -673,22 +708,22 @@ export function StartIntakeSection({
           {draft.source.kind === 'pdf' && pdfAnalysis && (pdfAnalysisTone !== 'normal' || pdfAnalysis.analyzedPageRange || pdfAnalysis.signals.length > 0) && (
             <div className={cn(
               'space-y-2 rounded-md border p-3',
-              pdfAnalysisTone === 'blocked' && 'border-rose-400/20 bg-rose-500/10',
-              pdfAnalysisTone === 'review' && 'border-amber-300/20 bg-amber-400/10',
-              pdfAnalysisTone === 'normal' && 'border-white/10 bg-black/20',
+              pdfAnalysisTone === 'blocked' && 'border-rose-200 bg-rose-50',
+              pdfAnalysisTone === 'review' && 'border-amber-200 bg-amber-50',
+              pdfAnalysisTone === 'normal' && 'border-slate-200 bg-slate-50',
             )}>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-slate-100">{t('intake.review.analysisTitle')}</p>
+                <p className="text-sm font-medium text-slate-900">{t('intake.review.analysisTitle')}</p>
                 <Badge variant="outline" className={cn(
-                  pdfAnalysisTone === 'blocked' && 'border-rose-300/25 bg-rose-500/10 text-rose-100',
-                  pdfAnalysisTone === 'review' && 'border-amber-300/25 bg-amber-400/10 text-amber-100',
-                  pdfAnalysisTone === 'normal' && 'border-white/10 bg-black/20 text-slate-300',
+                  pdfAnalysisTone === 'blocked' && 'border-rose-200 bg-rose-50 text-rose-700',
+                  pdfAnalysisTone === 'review' && 'border-amber-200 bg-amber-50 text-amber-700',
+                  pdfAnalysisTone === 'normal' && 'border-slate-200 bg-slate-50 text-slate-600',
                 )}>
                   {t(getPdfAnalysisLabelKey(pdfAnalysis))}
                 </Badge>
               </div>
 
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 {pdfAnalysis.analyzedPageRange
                   ? t('intake.review.pageRangeValue', {
                       start: pdfAnalysis.analyzedPageRange.start,
@@ -701,7 +736,7 @@ export function StartIntakeSection({
               {pdfAnalysis.signals.length > 0 && (
                 <div className="space-y-1.5">
                   {pdfAnalysis.signals.map(signal => (
-                    <div key={signal.code} className="rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-xs text-slate-300">
+                    <div key={signal.code} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
                       {signal.message}
                     </div>
                   ))}
@@ -710,16 +745,16 @@ export function StartIntakeSection({
             </div>
           )}
 
-          <div className="rounded-md border border-white/10 bg-black/20 p-3">
-            <p className="text-sm font-medium text-slate-100">{draft.resume.personal.fullName}</p>
-            <p className="mt-1 text-xs text-slate-400">{draft.resume.personal.headline}</p>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-medium text-slate-900">{draft.resume.personal.fullName}</p>
+            <p className="mt-1 text-xs text-slate-500">{draft.resume.personal.headline}</p>
             <p className="mt-2 line-clamp-3 text-xs text-slate-500">{draft.resume.summary}</p>
           </div>
 
           {draft.warnings.length > 0 && (
             <div className="space-y-1.5">
               {draft.warnings.map(warning => (
-                <div key={`${warning.code}-${warning.fieldPath || warning.message}`} className="flex gap-2 rounded-md border border-amber-300/20 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">
+                <div key={`${warning.code}-${warning.fieldPath || warning.message}`} className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>{formatIntakeWarningMessage(warning, t)}</span>
                 </div>
@@ -732,7 +767,7 @@ export function StartIntakeSection({
               <ArrowLeft className="h-4 w-4" />
               {draft.source.kind === 'pdf' ? t('actions.chooseAnotherPdf') : t('actions.editInput')}
             </Button>
-            <Button className="h-9 flex-1 bg-cyan-300 text-slate-950 hover:bg-cyan-200" onClick={handleApplyDraft}>
+            <Button className="h-9 flex-1 bg-blue-600 text-white hover:bg-blue-500" onClick={handleApplyDraft}>
               <Check className="h-4 w-4" />
               {t('actions.applyDraft')}
             </Button>
@@ -745,19 +780,19 @@ export function StartIntakeSection({
 
 function FirstRunWelcomePanel({
   onDismiss,
+  onStartWithSample,
   onPasteText,
   onUploadPdf,
-  onStartManually,
   onTailorLater,
 }: {
   onDismiss?: () => void;
+  onStartWithSample: () => void;
   onPasteText: () => void;
   onUploadPdf: () => void;
-  onStartManually: () => void;
   onTailorLater?: () => void;
 }) {
   const { t } = useI18n();
-  const steps = ['start', 'edit', 'design', 'tailor', 'export'] as const;
+  const valueProps = ['intake', 'draft', 'export'] as const;
 
   React.useEffect(() => {
     trackAnalyticsEvent('onboarding_viewed', { surface: 'start_tab' });
@@ -768,52 +803,66 @@ function FirstRunWelcomePanel({
     onDismiss?.();
   };
 
+  const handleStartWithSample = () => {
+    trackAnalyticsEvent('start_action_clicked', { action: 'sample' });
+    onStartWithSample();
+  };
+
+  const handlePasteText = () => {
+    trackAnalyticsEvent('start_action_clicked', { action: 'paste_text' });
+    onPasteText();
+  };
+
+  const handleUploadPdf = () => {
+    trackAnalyticsEvent('start_action_clicked', { action: 'upload_pdf' });
+    onUploadPdf();
+  };
+
   return (
-    <section className="space-y-3 rounded-md border border-cyan-300/20 bg-cyan-300/[0.06] p-3">
+    <section className="space-y-3 rounded-md border border-blue-200 bg-blue-50 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200/80">{t('onboarding.eyebrow')}</p>
-          <h2 className="mt-1 text-lg font-semibold text-white">{t('onboarding.title')}</h2>
-          <p className="mt-1 text-xs leading-5 text-slate-300">{t('onboarding.description')}</p>
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded border border-cyan-300/20 bg-black/20 px-2 py-1 text-[11px] leading-4 text-cyan-100">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            {t('onboarding.localOnlyNote')}
-          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600">{t('onboarding.eyebrow')}</p>
+          <h2 className="mt-1 text-lg font-semibold text-slate-900">{t('onboarding.title')}</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{t('onboarding.description')}</p>
         </div>
         {onDismiss ? (
-          <Button type="button" variant="outline" className="h-8 shrink-0 border-white/10 bg-white/[0.04] px-2 text-xs text-slate-200 hover:bg-white/[0.08]" onClick={handleDismiss}>
+          <Button type="button" variant="outline" className="h-8 shrink-0 border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-100" onClick={handleDismiss}>
             {t('onboarding.dismiss')}
           </Button>
         ) : null}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        <Button type="button" className="h-auto min-w-0 justify-start whitespace-normal bg-cyan-300 p-3 text-left text-slate-950 hover:bg-cyan-200" onClick={onUploadPdf}>
-          <FileUp className="h-4 w-4 shrink-0" />
-          <span className="min-w-0 leading-5">{t('onboarding.actions.uploadPdf')}</span>
+      <ol className="grid gap-2 sm:grid-cols-3">
+        {valueProps.map((prop, index) => (
+          <li key={prop} className="rounded border border-slate-200 bg-white px-3 py-2.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-semibold text-white">{index + 1}</span>
+            <span className="mt-2 block text-xs font-medium leading-5 text-slate-700">{t(`onboarding.valueProps.${prop}`)}</span>
+          </li>
+        ))}
+      </ol>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Button type="button" className="h-auto min-w-0 justify-start whitespace-normal bg-blue-600 p-3 text-left text-white hover:bg-blue-500" onClick={handleStartWithSample}>
+          <Sparkles className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 leading-5">{t('onboarding.actions.startWithSample')}</span>
         </Button>
-        <Button type="button" variant="outline" className="h-auto min-w-0 justify-start whitespace-normal border-white/10 bg-white/[0.04] p-3 text-left text-slate-100 hover:bg-white/[0.08]" onClick={onPasteText}>
+        <Button type="button" variant="outline" className="h-auto min-w-0 justify-start whitespace-normal border-slate-300 bg-white p-3 text-left text-slate-800 hover:bg-slate-100" onClick={handlePasteText}>
           <FileText className="h-4 w-4 shrink-0" />
           <span className="min-w-0 leading-5">{t('onboarding.actions.pasteText')}</span>
         </Button>
-        <Button type="button" variant="outline" className="h-auto min-w-0 justify-start whitespace-normal border-white/10 bg-white/[0.04] p-3 text-left text-slate-100 hover:bg-white/[0.08]" onClick={onStartManually}>
-          <PenLine className="h-4 w-4 shrink-0" />
-          <span className="min-w-0 leading-5">{t('onboarding.actions.startManually')}</span>
+        <Button type="button" variant="outline" className="h-auto min-w-0 justify-start whitespace-normal border-slate-300 bg-white p-3 text-left text-slate-800 hover:bg-slate-100" onClick={handleUploadPdf}>
+          <FileUp className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 leading-5">{t('onboarding.actions.uploadPdf')}</span>
         </Button>
       </div>
 
-      <div className="rounded border border-white/10 bg-black/20 p-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('onboarding.workflowTitle')}</p>
-        <ol className="mt-2 grid gap-1.5 text-xs text-slate-300 sm:grid-cols-5">
-          {steps.map((step, index) => (
-            <li key={step} className="rounded border border-white/10 bg-white/[0.03] px-2 py-1.5">
-              <span className="text-cyan-200">{index + 1}.</span> {t(`onboarding.workflow.${step}`)}
-            </li>
-          ))}
-        </ol>
-      </div>
+      <p className="inline-flex items-center gap-1.5 rounded border border-slate-200 bg-white px-2 py-1 text-[11px] leading-4 text-slate-500">
+        <ShieldCheck className="h-3.5 w-3.5" />
+        {t('onboarding.localOnlyNote')}
+      </p>
 
-      <button type="button" className="text-left text-xs leading-5 text-slate-400 hover:text-slate-200" onClick={onTailorLater}>
+      <button type="button" className="block text-left text-xs leading-5 text-slate-500 hover:text-slate-700" onClick={onTailorLater}>
         {t('onboarding.tailorLater')}
       </button>
     </section>
@@ -822,8 +871,8 @@ function FirstRunWelcomePanel({
 
 function ContextHint({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
-      <p className="text-xs font-semibold text-slate-100">{title}</p>
+    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+      <p className="text-xs font-semibold text-slate-900">{title}</p>
       <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
     </div>
   );
@@ -851,12 +900,12 @@ function StartModeCard({
       disabled={disabled}
       className={cn(
         'rounded-md border p-3 text-left transition',
-        active ? 'border-cyan-300/50 bg-cyan-300/10 text-cyan-50' : 'border-white/10 bg-black/20 text-slate-300 hover:bg-white/[0.05]',
-        disabled && 'cursor-not-allowed opacity-50 hover:bg-black/20',
+        active ? 'border-blue-300 bg-blue-100 text-blue-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100',
+        disabled && 'cursor-not-allowed opacity-50 hover:bg-slate-50',
       )}
     >
-      <Icon className="mb-2 h-4 w-4 text-cyan-200" />
-      <span className="block text-xs font-semibold text-slate-100">{title}</span>
+      <Icon className="mb-2 h-4 w-4 text-blue-600" />
+      <span className="block text-xs font-semibold text-slate-900">{title}</span>
       <span className="mt-1 block text-[11px] leading-4 text-slate-500">{description}</span>
     </button>
   );
@@ -864,9 +913,9 @@ function StartModeCard({
 
 function DraftStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-white/10 bg-black/20 px-2 py-2">
+    <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-slate-100">{value}</p>
+      <p className="mt-1 text-lg font-semibold text-slate-900">{value}</p>
     </div>
   );
 }
@@ -877,37 +926,37 @@ function IntakeStatusNotice({ mode, status, fileName }: { mode: StartIntakeMode;
   const config = {
     idle: {
       icon: mode === 'pdf' ? FileUp : FileText,
-      className: 'border-white/10 bg-black/20 text-slate-400',
+      className: 'border-slate-200 bg-slate-50 text-slate-500',
       label: mode === 'pdf' ? t('intake.notices.idlePdf') : t('intake.notices.idleText'),
     },
     uploading: {
       icon: Loader2,
-      className: 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100',
+      className: 'border-blue-200 bg-blue-100 text-blue-700',
       label: t('intake.notices.uploading', { fileName: fileName || t('common.pdf') }),
     },
     extracting: {
       icon: Loader2,
-      className: 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100',
+      className: 'border-blue-200 bg-blue-100 text-blue-700',
       label: t('intake.notices.extracting'),
     },
     generating: {
       icon: Loader2,
-      className: 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100',
+      className: 'border-blue-200 bg-blue-100 text-blue-700',
       label: mode === 'pdf' ? t('intake.notices.generatingPdf') : t('intake.notices.generatingText'),
     },
     needsSelection: {
       icon: AlertTriangle,
-      className: 'border-amber-300/20 bg-amber-400/10 text-amber-100',
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
       label: t('intake.notices.selectionRequired'),
     },
     error: {
       icon: AlertTriangle,
-      className: 'border-rose-400/20 bg-rose-500/10 text-rose-100',
+      className: 'border-rose-200 bg-rose-50 text-rose-700',
       label: mode === 'pdf' ? t('intake.notices.errorPdf') : t('intake.notices.errorText'),
     },
     success: {
       icon: Check,
-      className: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
       label: mode === 'pdf' ? t('intake.notices.successPdf') : t('intake.notices.successText'),
     },
   }[status];
@@ -1072,12 +1121,12 @@ function ExperienceItem({
           <Input className={inputClass} value={experience.location || ''} onChange={event => onUpdate({ location: event.target.value })} placeholder={t('placeholders.experienceLocation')} />
         </Field>
       </div>
-      <label className="flex items-center gap-2 rounded-md border border-white/10 bg-black/20 px-2.5 py-2 text-xs text-slate-300">
+      <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
         <input
           type="checkbox"
           checked={Boolean(experience.current)}
           onChange={event => onUpdate({ current: event.target.checked, endDate: event.target.checked ? '' : experience.endDate })}
-          className="h-3.5 w-3.5 accent-cyan-400"
+          className="h-3.5 w-3.5 accent-blue-600"
         />
         {t('items.currentlyWorkingHere')}
       </label>
@@ -1201,12 +1250,12 @@ function BulletList({ bullets, onChange, placeholder }: { bullets: string[]; onC
               }}
               placeholder={placeholder}
             />
-            <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-500/10 hover:text-rose-300" onClick={() => onChange(bullets.filter((_, index) => index !== bulletIndex))}>
+            <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => onChange(bullets.filter((_, index) => index !== bulletIndex))}>
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         ))}
-        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-cyan-200 hover:bg-cyan-400/10 hover:text-cyan-100" onClick={() => onChange([...bullets, ''])}>
+        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-blue-600 hover:bg-blue-100 hover:text-blue-700" onClick={() => onChange([...bullets, ''])}>
           <Plus className="h-3.5 w-3.5" />
           {t('actions.addBullet')}
         </Button>
@@ -1219,13 +1268,13 @@ function ItemShell({ title, subtitle, onRemove, children }: { title: string; sub
   const { t } = useI18n();
 
   return (
-    <div className="overflow-hidden rounded-md border border-white/10 bg-black/20">
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-white/[0.03] px-3 py-2">
+    <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-slate-100">{title}</p>
+          <p className="truncate text-sm font-medium text-slate-900">{title}</p>
           <p className="truncate text-[11px] text-slate-500">{subtitle}</p>
         </div>
-        <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-500/10 hover:text-rose-300" onClick={onRemove}>
+        <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={onRemove}>
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
@@ -1284,9 +1333,9 @@ function DesignSection() {
                 type="button"
                 title={t(preset.nameKey)}
                 onClick={() => updateDesign({ accentColor: preset.value })}
-                className={cn('flex h-9 items-center justify-center rounded-md border bg-black/20 transition', isActive ? 'border-white/70' : 'border-white/10 hover:border-white/30')}
+                className={cn('flex h-9 items-center justify-center rounded-md border bg-slate-50 transition', isActive ? 'border-slate-400' : 'border-slate-200 hover:border-slate-300')}
               >
-                <span className="h-5 w-5 rounded-full border border-white/30" style={{ backgroundColor: preset.value }} />
+                <span className="h-5 w-5 rounded-full border border-slate-300" style={{ backgroundColor: preset.value }} />
               </button>
             );
           })}
@@ -1313,12 +1362,12 @@ function TemplateSelectionCard({
       onClick={onSelect}
       className={cn(
         'rounded-xl border p-3 text-left transition',
-        isActive ? 'border-cyan-300/60 bg-cyan-300/10 text-cyan-50 shadow-lg shadow-cyan-950/20' : 'border-white/10 bg-black/20 text-slate-300 hover:border-white/20 hover:bg-white/[0.05]',
+        isActive ? 'border-blue-300 bg-blue-100 text-blue-700 shadow-lg shadow-blue-200/50' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-slate-100',
       )}
     >
       <div className="grid gap-3 md:grid-cols-[170px_1fr] md:items-start">
-        <div className={cn('overflow-hidden rounded-xl border bg-[#0b0b0a]', isActive ? 'border-cyan-200/30' : 'border-white/10')}>
-          <div className="aspect-[4/3] bg-[#f3efe6]">
+        <div className={cn('overflow-hidden rounded-xl border bg-slate-100', isActive ? 'border-blue-200' : 'border-slate-200')}>
+          <div className="aspect-[4/3] bg-white">
             <img
               src={template.preview.imagePath}
               alt={t(template.nameKey)}
@@ -1332,24 +1381,24 @@ function TemplateSelectionCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-50">{t(template.nameKey)}</p>
-              <p className="mt-1 text-xs leading-5 text-slate-400">{t(template.descriptionKey)}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">{t(template.descriptionKey)}</p>
             </div>
             {isActive ? (
-              <Badge variant="outline" className="border-cyan-300/50 bg-cyan-300/10 text-cyan-100">
+              <Badge variant="outline" className="border-blue-300 bg-blue-100 text-blue-700">
                 <Check className="mr-1 h-3 w-3" />
                 {t('common.current')}
               </Badge>
             ) : (
-              <Badge variant="outline" className="border-white/10 bg-white/[0.03] text-slate-400">{t('common.select')}</Badge>
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-500">{t('common.select')}</Badge>
             )}
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="border-white/10 bg-white/[0.03] text-slate-300">
+            <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-600">
               {t(template.preview.layoutLabelKey)}
             </Badge>
             {template.preview.tagKeys.map(tagKey => (
-              <Badge key={`${template.id}-${tagKey}`} variant="outline" className="border-white/10 bg-white/[0.03] text-slate-400">
+              <Badge key={`${template.id}-${tagKey}`} variant="outline" className="border-slate-200 bg-slate-50 text-slate-500">
                 {t(tagKey)}
               </Badge>
             ))}
@@ -1370,7 +1419,7 @@ function SegmentedControl<TValue extends string>({
   onChange: (value: TValue) => void;
 }) {
   return (
-    <div className="grid gap-1 rounded-md border border-white/10 bg-black/20 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+    <div className="grid gap-1 rounded-md border border-slate-200 bg-slate-50 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
       {options.map(option => {
         const isActive = option.id === value;
         return (
@@ -1381,7 +1430,7 @@ function SegmentedControl<TValue extends string>({
             onClick={() => onChange(option.id)}
             className={cn(
               'min-h-10 rounded px-2 py-1.5 text-center transition',
-              isActive ? 'bg-white/12 text-white shadow-sm shadow-black/30' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200',
+              isActive ? 'bg-blue-600 text-white shadow-sm shadow-slate-400/20' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
             )}
           >
             <span className="block text-xs font-semibold">{option.label}</span>
@@ -1441,22 +1490,25 @@ export function ExportSection() {
   const handleDownloadPdf = async () => {
     setExportStatus('generating');
     setExportError(null);
+    const issueCodes = readiness.issues.map(issue => issue.code);
     trackAnalyticsEvent('export_started', {
       format: 'pdf',
-      issueCodes: readiness.issues.map(issue => issue.code),
+      issueCodes,
     });
+    let stage: 'render' | 'download' = 'render';
     try {
       const result = await renderTypstToPdf(typstSource);
       if (!result.ok) {
         throw new Error(result.error || t('preview.pdfRenderFailed'));
       }
 
+      stage = 'download';
       const fileName = await exportPdf(resume, result.pdfBlob, documentTitle);
       setLastExportFileName(fileName);
       setExportStatus('success');
       trackAnalyticsEvent('export_completed', {
         format: 'pdf',
-        issueCodes: readiness.issues.map(issue => issue.code),
+        issueCodes,
       });
       toast.success(t('toast.pdfDownloaded'));
     } catch (error) {
@@ -1464,8 +1516,8 @@ export function ExportSection() {
       setExportError(formatError(error));
       trackAnalyticsEvent('export_failed', {
         format: 'pdf',
-        issueCodes: readiness.issues.map(issue => issue.code),
-        reason: 'render_failed',
+        issueCodes,
+        reason: stage === 'render' ? 'render_failed' : 'download_failed',
       });
       toast.error(t('toast.pdfDownloadFailed'), { description: formatError(error) });
     }
@@ -1476,19 +1528,19 @@ export function ExportSection() {
       <div className="space-y-3">
         <ExportReadinessPanel readiness={readiness} />
 
-        <div className="space-y-2 rounded-md border border-white/10 bg-black/20 p-3">
+        <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-white">{t('exportPanel.summaryTitle')}</p>
+              <p className="text-sm font-semibold text-slate-900">{t('exportPanel.summaryTitle')}</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">{t('exportPanel.summaryDescription')}</p>
             </div>
             <Badge className={getReadinessLevelClassName(readiness.level)}>
               {readiness.level === 'ready' ? t('exportReadiness.readyTitle') : readiness.level === 'blocked' ? t('exportReadiness.blockedTitle') : t('exportReadiness.needsReviewTitle')}
             </Badge>
           </div>
-          <div className="rounded border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-2">
-            <p className="text-sm font-semibold text-cyan-50">{t('exportPanel.activeDocumentTitle', { title: documentTitle })}</p>
-            <p className="mt-1 text-xs leading-5 text-cyan-100/80">{t('exportPanel.activeDocumentDescription')}</p>
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2">
+            <p className="text-sm font-semibold text-blue-700">{t('exportPanel.activeDocumentTitle', { title: documentTitle })}</p>
+            <p className="mt-1 text-xs leading-5 text-blue-700">{t('exportPanel.activeDocumentDescription')}</p>
           </div>
           <dl className="grid gap-2 text-xs sm:grid-cols-2">
             <ExportSummaryItem label={t('exportPanel.documentTitle')} value={documentTitle} />
@@ -1501,20 +1553,20 @@ export function ExportSection() {
         </div>
 
         {exportStatus !== 'idle' ? (
-          <div className={`rounded-md border px-3 py-2 text-xs ${exportStatus === 'success' ? 'border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-100' : exportStatus === 'error' ? 'border-rose-400/20 bg-rose-500/10 text-rose-100' : 'border-cyan-300/20 bg-cyan-300/[0.06] text-cyan-100'}`}>
+          <div className={`rounded-md border px-3 py-2 text-xs ${exportStatus === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : exportStatus === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
             {exportStatus === 'generating' ? t('exportPanel.generatingPdf') : exportStatus === 'success' ? t('exportPanel.exportedFile', { fileName: lastExportFileName || pdfFileName }) : t('exportPanel.exportFailed', { message: exportError || t('preview.pdfRenderFailed') })}
           </div>
         ) : null}
 
         <div className="grid gap-2">
-          <Button className="h-auto min-h-10 justify-start whitespace-normal bg-cyan-300 text-left text-slate-950 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60" onClick={handleDownloadPdf} disabled={isDownloadingPdf || isPdfTechnicallyBlocked}>
+          <Button className="h-auto min-h-10 justify-start whitespace-normal bg-blue-600 text-left text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60" onClick={handleDownloadPdf} disabled={isDownloadingPdf || isPdfTechnicallyBlocked}>
             {isDownloadingPdf ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FileDown className="h-4 w-4 shrink-0" />}
             <span className="min-w-0">{isDownloadingPdf ? t('exportPanel.generatingPdf') : t('actions.downloadPdf')}</span>
           </Button>
           {isPdfTechnicallyBlocked ? (
-            <p className="break-words text-[11px] leading-4 text-rose-200">{t('exportReadiness.technicalBlock')}</p>
+            <p className="break-words text-[11px] leading-4 text-rose-700">{t('exportReadiness.technicalBlock')}</p>
           ) : readiness.level !== 'ready' ? (
-            <p className="break-words text-[11px] leading-4 text-amber-100/80">{t('exportReadiness.exportAnyway')}</p>
+            <p className="break-words text-[11px] leading-4 text-amber-700">{t('exportReadiness.exportAnyway')}</p>
           ) : null}
           <p className="break-words text-[11px] leading-4 text-slate-500">{t('exportPanel.pdfPrimaryHelper', { fileName: pdfFileName })}</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1546,15 +1598,15 @@ function ExportReadinessPanel({ readiness }: { readiness: ReturnType<typeof anal
     <div className={cn('space-y-3 rounded-md border p-3', getReadinessPanelClassName(readiness.level))}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{t('exportReadiness.title')}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{t('exportReadiness.title')}</p>
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
             {getReadinessLevelIcon(readiness.level)}
-            <p className="text-sm font-semibold text-white">{t(getReadinessLevelTitleKey(readiness.level))}</p>
-            <Badge variant="outline" className="rounded border-white/10 bg-black/20 px-2 py-0.5 text-[11px] text-slate-200">
+            <p className="text-sm font-semibold text-slate-900">{t(getReadinessLevelTitleKey(readiness.level))}</p>
+            <Badge variant="outline" className="rounded border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-700">
               {t('exportReadiness.scoreLabel', { score: readiness.score })}
             </Badge>
           </div>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
+          <p className="mt-1 text-xs leading-5 text-slate-500">
             {t('exportReadiness.summary', {
               blockers: readiness.summary.blockerCount,
               warnings: readiness.summary.warningCount,
@@ -1566,7 +1618,7 @@ function ExportReadinessPanel({ readiness }: { readiness: ReturnType<typeof anal
 
       {visibleIssues.length > 0 ? (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-200">{t('exportReadiness.needsAttention')}</p>
+          <p className="text-xs font-semibold text-slate-700">{t('exportReadiness.needsAttention')}</p>
           <ul className="space-y-1.5">
             {visibleIssues.map(issue => (
               <ReadinessIssueRow key={issue.id} issue={issue} />
@@ -1577,7 +1629,7 @@ function ExportReadinessPanel({ readiness }: { readiness: ReturnType<typeof anal
 
       {visiblePasses.length > 0 ? (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-200">{t('exportReadiness.passedChecks')}</p>
+          <p className="text-xs font-semibold text-slate-700">{t('exportReadiness.passedChecks')}</p>
           <ul className="grid gap-1.5 sm:grid-cols-2">
             {visiblePasses.map(issue => (
               <ReadinessIssueRow key={issue.id} issue={issue} compact />
@@ -1587,7 +1639,7 @@ function ExportReadinessPanel({ readiness }: { readiness: ReturnType<typeof anal
       ) : null}
 
       {hiddenCount > 0 || showAll ? (
-        <Button type="button" variant="ghost" className="h-7 px-2 text-xs text-slate-300 hover:bg-white/[0.06] hover:text-white" onClick={() => setShowAll(current => !current)}>
+        <Button type="button" variant="ghost" className="h-7 px-2 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900" onClick={() => setShowAll(current => !current)}>
           {showAll ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           {showAll ? t('exportReadiness.showLess') : t('exportReadiness.showAll')}
         </Button>
@@ -1604,16 +1656,16 @@ function ReadinessIssueRow({ issue, compact = false }: { issue: ExportReadinessI
         {getSeverityIcon(issue.severity)}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <span className="min-w-0 text-xs font-semibold leading-5 text-slate-100">{t(issue.titleKey)}</span>
+            <span className="min-w-0 text-xs font-semibold leading-5 text-slate-900">{t(issue.titleKey)}</span>
             {issue.section ? (
-              <Badge variant="outline" className="rounded border-white/10 bg-black/20 px-1.5 py-0 text-[10px] text-slate-300">
+              <Badge variant="outline" className="rounded border-slate-200 bg-slate-50 px-1.5 py-0 text-[10px] text-slate-600">
                 {t(getSectionLabelKey(issue.section))}
               </Badge>
             ) : null}
             <span className="text-[10px] uppercase tracking-wide text-slate-500">{t(getSeverityLabelKey(issue.severity))}</span>
           </div>
           {!compact && issue.descriptionKey ? (
-            <p className="text-xs leading-5 text-slate-400">{t(issue.descriptionKey)}</p>
+            <p className="text-xs leading-5 text-slate-500">{t(issue.descriptionKey)}</p>
           ) : null}
         </div>
       </div>
@@ -1623,9 +1675,9 @@ function ReadinessIssueRow({ issue, compact = false }: { issue: ExportReadinessI
 
 function ExportSummaryItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded border border-white/10 bg-white/[0.03] px-2 py-1.5">
+    <div className="min-w-0 rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
       <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-0.5 break-words text-slate-200">{value}</dd>
+      <dd className="mt-0.5 break-words text-slate-700">{value}</dd>
     </div>
   );
 }
@@ -1650,35 +1702,35 @@ function getReadinessLevelTitleKey(level: ExportReadinessLevel): TranslationKey 
 }
 
 function getReadinessLevelClassName(level: ExportReadinessLevel): string {
-  if (level === 'blocked') return 'border-rose-400/30 bg-rose-500/10 text-rose-100';
-  if (level === 'needs_review') return 'border-amber-400/30 bg-amber-400/10 text-amber-100';
-  return 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100';
+  if (level === 'blocked') return 'border-rose-200 bg-rose-50 text-rose-700';
+  if (level === 'needs_review') return 'border-amber-200 bg-amber-50 text-amber-700';
+  return 'border-emerald-200 bg-emerald-50 text-emerald-700';
 }
 
 function getReadinessPanelClassName(level: ExportReadinessLevel): string {
-  if (level === 'blocked') return 'border-rose-400/20 bg-rose-500/[0.06]';
-  if (level === 'needs_review') return 'border-amber-400/20 bg-amber-400/[0.05]';
-  return 'border-emerald-400/20 bg-emerald-400/[0.05]';
+  if (level === 'blocked') return 'border-rose-200 bg-rose-50';
+  if (level === 'needs_review') return 'border-amber-200 bg-amber-50';
+  return 'border-emerald-200 bg-emerald-50';
 }
 
 function getReadinessLevelIcon(level: ExportReadinessLevel) {
-  if (level === 'blocked') return <AlertTriangle className="h-4 w-4 text-rose-300" />;
-  if (level === 'needs_review') return <AlertTriangle className="h-4 w-4 text-amber-300" />;
-  return <ShieldCheck className="h-4 w-4 text-emerald-300" />;
+  if (level === 'blocked') return <AlertTriangle className="h-4 w-4 text-rose-600" />;
+  if (level === 'needs_review') return <AlertTriangle className="h-4 w-4 text-amber-700" />;
+  return <ShieldCheck className="h-4 w-4 text-emerald-600" />;
 }
 
 function getSeverityClassName(severity: ExportReadinessSeverity): string {
-  if (severity === 'blocker') return 'border-rose-400/20 bg-rose-500/[0.08]';
-  if (severity === 'warning') return 'border-amber-400/20 bg-amber-400/[0.07]';
-  if (severity === 'suggestion') return 'border-cyan-300/20 bg-cyan-300/[0.05]';
-  return 'border-emerald-400/20 bg-emerald-400/[0.05]';
+  if (severity === 'blocker') return 'border-rose-200 bg-rose-50';
+  if (severity === 'warning') return 'border-amber-200 bg-amber-50';
+  if (severity === 'suggestion') return 'border-blue-200 bg-blue-50';
+  return 'border-emerald-200 bg-emerald-50';
 }
 
 function getSeverityIcon(severity: ExportReadinessSeverity) {
-  if (severity === 'pass') return <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-300" />;
-  if (severity === 'blocker') return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-rose-300" />;
-  if (severity === 'warning') return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-amber-300" />;
-  return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-cyan-300" />;
+  if (severity === 'pass') return <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-600" />;
+  if (severity === 'blocker') return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-rose-600" />;
+  if (severity === 'warning') return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-amber-700" />;
+  return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-blue-600" />;
 }
 
 function getSeverityLabelKey(severity: ExportReadinessSeverity): TranslationKey {
@@ -1731,15 +1783,15 @@ function VersionHistorySection() {
       ) : (
         <div className="space-y-2">
           {versions.map(version => (
-            <div key={version.id} className="flex items-center gap-2 rounded-md border border-white/10 bg-black/20 px-2 py-2">
+            <div key={version.id} className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-2">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-200">{version.label}</p>
+                <p className="truncate text-sm font-medium text-slate-700">{version.label}</p>
                 <p className="text-[11px] text-slate-500">{new Date(version.createdAt).toLocaleString()}</p>
               </div>
-              <Button size="icon" variant="ghost" title={t('actions.restore')} className="h-8 w-8 text-slate-400 hover:bg-cyan-400/10 hover:text-cyan-200" onClick={() => restoreVersion(version)}>
+              <Button size="icon" variant="ghost" title={t('actions.restore')} className="h-8 w-8 text-slate-500 hover:bg-blue-100 hover:text-blue-600" onClick={() => restoreVersion(version)}>
                 <RotateCcw className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 text-slate-500 hover:bg-rose-500/10 hover:text-rose-300" onClick={() => deleteVersion(version.id)}>
+              <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => deleteVersion(version.id)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>

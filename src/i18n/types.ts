@@ -99,10 +99,16 @@ export type TranslationSchema = {
     dismiss: string;
     workflowTitle: string;
     tailorLater: string;
+    valueProps: {
+      title: string;
+      intake: string;
+      draft: string;
+      export: string;
+    };
     actions: {
-      uploadPdf: string;
+      startWithSample: string;
       pasteText: string;
-      startManually: string;
+      uploadPdf: string;
     };
     workflow: {
       start: string;

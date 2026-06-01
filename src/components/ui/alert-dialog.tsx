@@ -30,7 +30,7 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-md border border-white/10 bg-[#171612] p-5 text-slate-100 shadow-xl',
+        'fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-md border border-slate-200 bg-white p-5 text-slate-900 shadow-xl',
         className,
       )}
       {...props}
@@ -61,7 +61,7 @@ const AlertDialogDescription = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Description ref={ref} className={cn('text-sm leading-6 text-slate-400', className)} {...props} />
+  <AlertDialogPrimitive.Description ref={ref} className={cn('text-sm leading-6 text-slate-600', className)} {...props} />
 ));
 AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayName;
 
@@ -69,7 +69,7 @@ const AlertDialogCancelButton = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Cancel>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Cancel>
 >(({ className, ...props }, ref) => (
-  <AlertDialogCancel ref={ref} className={cn(buttonVariants({ variant: 'outline' }), 'border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08] hover:text-white', className)} {...props} />
+  <AlertDialogCancel ref={ref} className={cn(buttonVariants({ variant: 'outline' }), 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900', className)} {...props} />
 ));
 AlertDialogCancelButton.displayName = AlertDialogPrimitive.Cancel.displayName;
 

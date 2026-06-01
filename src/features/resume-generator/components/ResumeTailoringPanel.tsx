@@ -14,7 +14,7 @@ import { formatTailoringWarningMessage } from '../lib/formatTailoringWarning';
 import { generateTailoredResume, getTailoringUsage } from '../lib/resumeTailoring';
 import { useResumeGeneratorStore } from '../store/resumeGeneratorStore';
 
-const textareaClass = 'border-white/10 bg-black/25 text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400';
+const textareaClass = 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-blue-500';
 
 type TailoringStatus = 'idle' | 'checking' | 'generating' | 'error' | 'success';
 
@@ -124,29 +124,29 @@ export function ResumeTailoringPanel() {
 
   return (
     <div className="space-y-3">
-      <section className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+      <section className="rounded-md border border-slate-200 bg-slate-50 p-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Sparkles className="h-4 w-4 text-cyan-300" />
+            <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <Sparkles className="h-4 w-4 text-blue-600" />
               {t('tailoring.title')}
             </p>
-            <p className="mt-1 text-xs leading-5 text-slate-400">{t('tailoring.description')}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{t('tailoring.description')}</p>
           </div>
           {usage ? (
-            <Badge className="shrink-0 border-cyan-500/30 bg-cyan-500/10 text-cyan-100">
+            <Badge className="shrink-0 border-blue-300 bg-blue-100 text-blue-700">
               {t('tailoring.usage.remaining', { remaining: usage.remainingAttempts, limit: usage.limit })}
             </Badge>
           ) : null}
         </div>
-        <p className="mt-3 rounded border border-white/10 bg-black/20 px-2.5 py-2 text-xs text-slate-300">
+        <p className="mt-3 rounded border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
           {t('tailoring.currentResume', { title: activeDocument?.title || resume.title })}
         </p>
       </section>
 
-      <section className="space-y-2 rounded-md border border-white/10 bg-white/[0.03] p-3">
+      <section className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('tailoring.jobDescriptionLabel')}</Label>
+          <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('tailoring.jobDescriptionLabel')}</Label>
           <span className="text-[10px] text-slate-500">{t('meta.characters', { count: jobDescription.length })}</span>
         </div>
         <Textarea
@@ -157,9 +157,9 @@ export function ResumeTailoringPanel() {
         />
         <p className="text-[11px] leading-4 text-slate-500">{t('tailoring.helper')}</p>
         {error ? (
-          <div className="rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-100">{error}</div>
+          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
         ) : null}
-        <Button type="button" className="w-full bg-cyan-400 text-cyan-950 hover:bg-cyan-300" disabled={!canGenerate} onClick={handleGenerate}>
+        <Button type="button" className="w-full bg-blue-600 text-white hover:bg-blue-500" disabled={!canGenerate} onClick={handleGenerate}>
           {status === 'generating' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
           {status === 'generating' ? t('tailoring.generating') : t('tailoring.generate')}
         </Button>
@@ -200,21 +200,21 @@ function TailoringReview({
   })).filter(group => group.changes.length > 0);
 
   return (
-    <section className="space-y-3 rounded-md border border-emerald-500/20 bg-emerald-500/[0.06] p-3">
+    <section className="space-y-3 rounded-md border border-emerald-200 bg-emerald-50 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 text-sm font-semibold text-white">
-            <Check className="h-4 w-4 text-emerald-300" />
+          <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <Check className="h-4 w-4 text-emerald-600" />
             {t('tailoring.reviewTitle')}
           </p>
-          <p className="mt-1 text-xs text-slate-400">{t('tailoring.reviewDescription')}</p>
+          <p className="mt-1 text-xs text-slate-500">{t('tailoring.reviewDescription')}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <div className="flex flex-wrap justify-end gap-1.5">
-            <Badge className="border-emerald-400/30 bg-emerald-400/10 text-emerald-100">
+            <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
               {t('tailoring.acceptedCount', { count: acceptedCount })}
             </Badge>
-            <Badge className="border-slate-500/30 bg-slate-500/10 text-slate-200">
+            <Badge className="border-slate-500/30 bg-slate-500/10 text-slate-700">
               {t('tailoring.rejectedCount', { count: rejectedCount })}
             </Badge>
           </div>
@@ -230,24 +230,24 @@ function TailoringReview({
       <SummaryBlock title={t('tailoring.matchedStrengths')} values={result.summary.matchedStrengths} empty={t('tailoring.noneFound')} />
       <SummaryBlock title={t('tailoring.gaps')} values={result.summary.gaps} empty={t('tailoring.noGaps')} tone="warning" />
 
-      <div className="space-y-2 rounded border border-white/10 bg-black/20 p-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('tailoring.selectedDraftPreview')}</p>
-        <p className="text-xs leading-5 text-slate-300">{acceptedCount > 0 ? selectedResume.summary : t('tailoring.noAcceptedChanges')}</p>
+      <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('tailoring.selectedDraftPreview')}</p>
+        <p className="text-xs leading-5 text-slate-600">{acceptedCount > 0 ? selectedResume.summary : t('tailoring.noAcceptedChanges')}</p>
       </div>
 
       <div className="space-y-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('tailoring.proposedChanges')}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('tailoring.proposedChanges')}</p>
         {changesBySection.length > 0 ? changesBySection.map(group => (
-          <div key={group.section} className="rounded border border-white/10 bg-black/20 p-2.5">
-            <p className="mb-2 text-xs font-semibold text-slate-200">{t(`sections.${group.section}`)}</p>
-            <ul className="space-y-2 text-xs leading-5 text-slate-300">
+          <div key={group.section} className="rounded border border-slate-200 bg-slate-50 p-2.5">
+            <p className="mb-2 text-xs font-semibold text-slate-700">{t(`sections.${group.section}`)}</p>
+            <ul className="space-y-2 text-xs leading-5 text-slate-600">
               {group.changes.map(change => {
                 const accepted = acceptedChangeIds.has(change.id);
                 return (
-                  <li key={change.id} className={`rounded border px-2 py-1.5 ${accepted ? 'border-emerald-400/20 bg-emerald-400/[0.06]' : 'border-white/5 bg-white/[0.03] opacity-70'}`}>
+                  <li key={change.id} className={`rounded border px-2 py-1.5 ${accepted ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50 opacity-70'}`}>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <span className="font-medium text-slate-100">{t(`tailoring.changeKinds.${change.kind}`)}:</span> {change.description}
+                        <span className="font-medium text-slate-900">{t(`tailoring.changeKinds.${change.kind}`)}:</span> {change.description}
                         {change.reason ? <p className="mt-1 text-slate-500">{change.reason}</p> : null}
                       </div>
                       <div className="flex shrink-0 gap-1">
@@ -255,7 +255,7 @@ function TailoringReview({
                           type="button"
                           size="sm"
                           variant="outline"
-                          className={`h-7 border-emerald-400/30 px-2 text-[11px] ${accepted ? 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300' : 'bg-transparent text-emerald-100 hover:bg-emerald-400/10'}`}
+                          className={`h-7 border-emerald-200 px-2 text-[11px] ${accepted ? 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300' : 'bg-transparent text-emerald-700 hover:bg-emerald-50'}`}
                           aria-pressed={accepted}
                           onClick={() => onChangeDecision(change.id, true)}
                         >
@@ -266,7 +266,7 @@ function TailoringReview({
                           type="button"
                           size="sm"
                           variant="outline"
-                          className={`h-7 border-slate-500/40 px-2 text-[11px] ${!accepted ? 'bg-slate-200 text-slate-950 hover:bg-white' : 'bg-transparent text-slate-300 hover:bg-white/10'}`}
+                          className={`h-7 border-slate-500/40 px-2 text-[11px] ${!accepted ? 'bg-slate-200 text-slate-950 hover:bg-white' : 'bg-transparent text-slate-600 hover:bg-slate-200'}`}
                           aria-pressed={!accepted}
                           onClick={() => onChangeDecision(change.id, false)}
                         >
@@ -280,16 +280,16 @@ function TailoringReview({
               })}
             </ul>
           </div>
-        )) : <p className="rounded border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-500">{t('tailoring.noChanges')}</p>}
+        )) : <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">{t('tailoring.noChanges')}</p>}
       </div>
 
       {result.warnings.length > 0 ? (
-        <div className="space-y-2 rounded border border-amber-400/20 bg-amber-400/[0.06] p-2.5">
-          <p className="flex items-center gap-2 text-xs font-semibold text-amber-100">
+        <div className="space-y-2 rounded border border-amber-200 bg-amber-50 p-2.5">
+          <p className="flex items-center gap-2 text-xs font-semibold text-amber-700">
             <AlertTriangle className="h-4 w-4" />
             {t('tailoring.warnings')}
           </p>
-          <ul className="space-y-1.5 text-xs leading-5 text-amber-50/90">
+          <ul className="space-y-1.5 text-xs leading-5 text-amber-700">
             {result.warnings.map((warning, index) => (
               <li key={`${warning.code}-${warning.requirement || index}`}>{formatTailoringWarningMessage(warning, t)}</li>
             ))}
@@ -302,12 +302,12 @@ function TailoringReview({
 
 function SummaryBlock({ title, values, empty, tone = 'neutral' }: { title: string; values: string[]; empty: string; tone?: 'neutral' | 'warning' }) {
   return (
-    <div className="space-y-2 rounded border border-white/10 bg-black/20 p-2.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{title}</p>
+    <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{title}</p>
       {values.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {values.map(value => (
-            <Badge key={value} className={tone === 'warning' ? 'border-amber-400/30 bg-amber-400/10 text-amber-100' : 'border-white/10 bg-white/[0.06] text-slate-200'}>
+            <Badge key={value} className={tone === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-100 text-slate-700'}>
               {value}
             </Badge>
           ))}

@@ -11,6 +11,12 @@ import { createResumeDocument, loadResumeWorkspace, saveResumeWorkspace } from '
 import { useResumeGeneratorStore } from '@/features/resume-generator/store/resumeGeneratorStore';
 import { useLocaleStore } from '@/i18n';
 
+const { trackMock } = vi.hoisted(() => ({ trackMock: vi.fn() }));
+vi.mock('@/lib/analytics', () => ({
+  trackAnalyticsEvent: trackMock,
+  sanitizeAnalyticsPayload: (payload: Record<string, unknown>) => payload,
+}));
+
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -37,6 +43,7 @@ describe('first-run onboarding', () => {
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     localStorage.clear();
+    trackMock.mockClear();
     useLocaleStore.getState().setLocale('en');
     resetStore(getDefaultResume('en'));
     container = document.createElement('div');
@@ -54,12 +61,38 @@ describe('first-run onboarding', () => {
   it('appears on an untouched first-run workspace', async () => {
     await renderPanel();
 
-    expect(container.textContent).toContain('Build a resume from whatever you already have.');
-    expect(container.textContent).toContain('Upload a PDF resume');
-    expect(container.textContent).toContain('Paste rough text');
-    expect(container.textContent).toContain('Start manually');
+    expect(container.textContent).toContain('Turn rough notes into a polished resume.');
+    expect(container.textContent).toContain('Paste rough notes or upload a resume');
+    expect(container.textContent).toContain('Get an editable resume draft');
+    expect(container.textContent).toContain('Export a polished PDF');
+    expect(container.textContent).toContain('Start with sample');
+    expect(container.textContent).toContain('Paste text');
+    expect(container.textContent).toContain('Upload PDF');
     expect(container.textContent).toContain('Your resumes are saved locally in this browser for now');
-    expect(container.textContent).toContain('1. Start');
+  });
+
+  it('fires start_action_clicked when a start action is clicked', async () => {
+    await renderPanel();
+
+    await act(async () => {
+      getButton('Start with sample').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(trackMock).toHaveBeenCalledWith('start_action_clicked', { action: 'sample' });
+  });
+
+  it('focuses the paragraph textarea when Paste text is clicked', async () => {
+    await renderPanel();
+
+    await act(async () => {
+      getButton('Paste text').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      // Yield once so the focus effect inside StartIntakeSection can run.
+      await Promise.resolve();
+    });
+
+    const textarea = container.querySelector('textarea');
+    expect(textarea).toBeTruthy();
+    expect(document.activeElement).toBe(textarea);
   });
 
   it('dismisses onboarding and persists across reload', async () => {
@@ -69,7 +102,7 @@ describe('first-run onboarding', () => {
       getButton('Hide guide').dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(container.textContent).not.toContain('Build a resume from whatever you already have.');
+    expect(container.textContent).not.toContain('Turn rough notes into a polished resume.');
     expect(loadResumeWorkspace('en').hasDismissedOnboarding).toBe(true);
 
     await act(async () => {
@@ -79,7 +112,7 @@ describe('first-run onboarding', () => {
 
     await renderPanel();
 
-    expect(container.textContent).not.toContain('Build a resume from whatever you already have.');
+    expect(container.textContent).not.toContain('Turn rough notes into a polished resume.');
   });
 
   it('does not reappear when workspace already contains meaningful content', async () => {
@@ -98,7 +131,7 @@ describe('first-run onboarding', () => {
 
     await renderPanel();
 
-    expect(container.textContent).not.toContain('Build a resume from whatever you already have.');
+    expect(container.textContent).not.toContain('Turn rough notes into a polished resume.');
     expect(container.textContent).toContain('Real Resume');
   });
 
