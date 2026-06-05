@@ -379,6 +379,133 @@ export type TranslationSchema = {
     pdfDownloadFailed: string;
     draftApplied: string;
     tailoredDraftApplied: string;
+    localeSampleLoaded: string;
+    localeSampleDescription: string;
+  };
+  observability: {
+    title: string;
+    eyebrow: string;
+    description: string;
+    backToEditor: string;
+    session: {
+      title: string;
+      description: string;
+      endpointLabel: string;
+      bearerTokenLabel: string;
+      hoursLabel: string;
+      autoRefreshLabel: string;
+      loadSummary: string;
+      clearToken: string;
+      readOnlyBadge: string;
+      autoRefreshOn: string;
+      autoRefreshOff: string;
+      refreshingBadge: string;
+      crossOriginHint: string;
+      lastLoaded: string;
+      errorTokenRequired: string;
+      errorHoursRange: string;
+      errorLoadFailed: string;
+      endpointPlaceholder: string;
+      bearerTokenPlaceholder: string;
+    };
+    token: {
+      title: string;
+      description: string;
+      rotationBadge: string;
+      newTokenLabel: string;
+      confirmTokenLabel: string;
+      newTokenPlaceholder: string;
+      confirmTokenPlaceholder: string;
+      changeButton: string;
+      helperHint: string;
+      successMessage: string;
+      errorCurrentRequired: string;
+      errorLength: string;
+      errorWhitespace: string;
+      errorMismatch: string;
+      errorSameAsCurrent: string;
+      errorUpdateFailed: string;
+    };
+    metrics: {
+      requestsTitle: string;
+      requestsDescription: string;
+      requestsDescriptionHint: string;
+      p95Title: string;
+      p95Description: string;
+      droppedTitle: string;
+      droppedDescription: string;
+      droppedBreakdown: string;
+      queueTitle: string;
+      queueDescription: string;
+      queueUsageDescription: string;
+    };
+    trends: {
+      requestsTitle: string;
+      requestsDescription: string;
+      errorsTitle: string;
+      errorsDescription: string;
+      queueTitle: string;
+      queueDescription: string;
+      droppedTitle: string;
+      droppedDescription: string;
+      persistedBadge: string;
+      latest: string;
+      peak: string;
+      emptyTitle: string;
+      emptyDescription: string;
+    };
+    otlp: {
+      title: string;
+      description: string;
+      queueUsage: string;
+      dropPolicy: string;
+      inFlightLabel: string;
+      inFlightYes: string;
+      inFlightNo: string;
+      successfulExports: string;
+      failedExports: string;
+      retryCount: string;
+      exportedLogRecords: string;
+      overflowDrops: string;
+      failedExportDrops: string;
+      lastSuccess: string;
+      lastError: string;
+      historySamples: string;
+      lastErrorMessage: string;
+      emptyTitle: string;
+      emptyDescription: string;
+      endpointEnvHint: string;
+    };
+    failures: {
+      title: string;
+      description: string;
+      noErrorCode: string;
+      occurrences: string;
+      lastSeen: string;
+      emptyTitle: string;
+      emptyDescription: string;
+    };
+    routes: {
+      title: string;
+      description: string;
+      requests: string;
+      errors: string;
+      emptyTitle: string;
+      emptyDescription: string;
+    };
+    events: {
+      title: string;
+      description: string;
+      emptyTitle: string;
+      emptyDescription: string;
+    };
+    values: {
+      empty: string;
+    };
+    summaryError: {
+      invalidEndpoint: string;
+      failedPrefix: string;
+    };
   };
   tailoring: {
     title: string;

@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import { getCurrentLocale, translate, useLocaleStore } from '@/i18n';
 import { trackAnalyticsEvent } from '@/lib/analytics';
+import { toast } from 'sonner';
 import { ResumeData, ResumeDocument, ResumeIntakeWarning, ResumeVersion, ResumeWorkspace } from '@/types/resume';
 import { getDefaultResume } from '../data/defaultResume';
 import { loadResumeVersions, saveResumeVersion } from '../lib/resumeHistory';
 import { renderResumeToTypst } from '../data/resumeTemplates';
 import { resumeDesignDefaults } from '../data/resumeDesign';
 import { cloneResume, createResumeDocument, loadResumeWorkspace, saveResumeWorkspace } from '../lib/resumePersistence';
+import { isStarterResume } from '../lib/resumeOnboarding';
 
 type RenderStatus = 'idle' | 'rendering' | 'success' | 'error';
 
@@ -525,8 +527,17 @@ useLocaleStore.subscribe((state, previousState) => {
     return;
   }
 
-  const { resume } = useResumeGeneratorStore.getState();
+  const current = useResumeGeneratorStore.getState();
+  if (isStarterResume(current.resume, previousState.locale)) {
+    const nextResume = getDefaultResume(state.locale);
+    current.setResume(nextResume);
+    toast.success(translate(state.locale, 'toast.localeSampleLoaded'), {
+      description: translate(state.locale, 'toast.localeSampleDescription'),
+    });
+    return;
+  }
+
   useResumeGeneratorStore.setState({
-    typstSource: renderResumeToTypst(resume, resume.templateId, state.locale),
+    typstSource: renderResumeToTypst(current.resume, current.resume.templateId, state.locale),
   });
 });

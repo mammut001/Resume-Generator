@@ -5,6 +5,7 @@ import { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '@/App';
+import { useLocaleStore } from '@/i18n';
 
 describe('ObservabilityAdminPage', () => {
   let container: HTMLDivElement;
@@ -154,6 +155,35 @@ describe('ObservabilityAdminPage', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain('Admin token updated at');
     expect(sessionStorage.getItem('resume-generator-observability-token')).toBe('test-observability-rotated-token');
+  });
+
+  it('renders the observability dashboard in Chinese when the locale is zh-CN', async () => {
+    useLocaleStore.getState().setLocale('zh-CN');
+
+    await act(async () => {
+      root.render(<App />);
+    });
+
+    expect(container.textContent).toContain('后端可观测性');
+
+    const tokenInput = container.querySelector('input[aria-label="Bearer 令牌"]') as HTMLInputElement;
+    const tokenValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+
+    await act(async () => {
+      tokenValueSetter?.call(tokenInput, 'summary-secret');
+      tokenInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    await act(async () => {
+      getButton('加载摘要').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushUi();
+
+    expect(container.textContent).toContain('后端可观测性');
+    expect(container.textContent).toContain('队列使用率');
+    expect(container.textContent).toContain('每 30 秒自动刷新');
+    expect(container.textContent).toContain('队列深度趋势');
+    expect(container.textContent).toContain('丢日志趋势');
   });
 
   function getButton(text: string): HTMLButtonElement {
