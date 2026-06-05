@@ -586,6 +586,9 @@ export const zhCN = {
   },
   errors: {
     unknown: '未知错误',
+    noPdfToExport: '暂无可导出的 PDF',
+    copyToClipboardFailed: '复制到剪贴板失败',
+    pdfPageRangeRequired: '缩小 PDF 导入范围时，请同时提供 pageStart 和 pageEnd。',
   },
   versionHistory: {
     manualSaveLabel: '手动保存',

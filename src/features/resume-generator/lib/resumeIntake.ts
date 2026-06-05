@@ -1,3 +1,4 @@
+import { TranslationError } from './formatError';
 import { PdfIntakeResponse, ResumeIntakeResult, ResumeIntakeUsage } from '@/types/resume';
 
 const intakeEndpoint = (import.meta.env.VITE_RESUME_INTAKE_ENDPOINT || '/api/intake').replace(/\/$/, '');
@@ -40,7 +41,7 @@ export async function generateResumeFromPdf(
   formData.set('file', file);
 
   if ((options?.pageStart === undefined) !== (options?.pageEnd === undefined)) {
-    throw new Error('Provide both pageStart and pageEnd when narrowing a PDF import.');
+    throw new TranslationError('errors.pdfPageRangeRequired');
   }
 
   if (typeof options?.pageStart === 'number' && typeof options.pageEnd === 'number') {

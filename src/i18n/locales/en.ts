@@ -586,6 +586,9 @@ export const en = {
   },
   errors: {
     unknown: 'Unknown error',
+    noPdfToExport: 'No PDF available to export',
+    copyToClipboardFailed: 'Failed to copy to clipboard',
+    pdfPageRangeRequired: 'Provide both pageStart and pageEnd when narrowing a PDF import.',
   },
   versionHistory: {
     manualSaveLabel: 'Manual save',

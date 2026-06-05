@@ -84,6 +84,25 @@ describe('resumeToTypst', () => {
     expect(result).toContain('== 项目');
   });
 
+  it('translates library-thrown errors via TranslationError', async () => {
+    const { exportPdf, copyTypstSource } = await import('@/features/resume-generator/lib/exportResume');
+    const { formatError, TranslationError } = await import('@/features/resume-generator/lib/formatError');
+    const { translate } = await import('@/i18n');
+
+    const t = (key: string) => translate('zh-CN', key as never);
+
+    await expect(exportPdf({} as never, undefined)).rejects.toBeInstanceOf(TranslationError);
+    await expect(copyTypstSource('')).rejects.toBeInstanceOf(TranslationError);
+
+    await expect(exportPdf({} as never, undefined)).rejects.toMatchObject({ key: 'errors.noPdfToExport' });
+
+    const translated = formatError(new TranslationError('errors.copyToClipboardFailed'), t);
+    expect(translated).toBe('复制到剪贴板失败');
+
+    // Fallback: without a t function, formatError returns the key.
+    expect(formatError(new TranslationError('errors.copyToClipboardFailed'))).toBe('errors.copyToClipboardFailed');
+  });
+
   it('localizes the Projects section header in every template', () => {
     const zhResume = getDefaultResume('zh-CN');
     const enBasic = renderResumeToTypst(defaultResume, 'clean-professional', 'en');

@@ -1,8 +1,9 @@
+import { TranslationError } from './formatError';
 import { ResumeData } from '@/types/resume';
 
 export async function exportPdf(resume: ResumeData, pdfBlob: Blob | undefined, documentTitle?: string): Promise<string> {
   if (!pdfBlob) {
-    throw new Error('No PDF available to export');
+    throw new TranslationError('errors.noPdfToExport');
   }
 
   const fileName = buildResumeExportFileName(resume, 'pdf', documentTitle);
@@ -14,7 +15,7 @@ export async function copyTypstSource(typstSource: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(typstSource);
   } catch {
-    throw new Error('Failed to copy to clipboard');
+    throw new TranslationError('errors.copyToClipboardFailed');
   }
 }
 

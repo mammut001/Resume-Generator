@@ -522,6 +522,9 @@ export type TranslationSchema = {
   };
   errors: {
     unknown: string;
+    noPdfToExport: string;
+    copyToClipboardFailed: string;
+    pdfPageRangeRequired: string;
   };
   versionHistory: {
     manualSaveLabel: string;
