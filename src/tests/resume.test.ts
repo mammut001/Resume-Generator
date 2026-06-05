@@ -244,6 +244,17 @@ describe('formatError', () => {
   it('handles unknown errors', () => {
     expect(formatError(null)).toBe('Unknown error');
     expect(formatError(undefined)).toBe('Unknown error');
+
+    const circular: Record<string, unknown> = { a: 1 };
+    circular.self = circular;
+
+    const t = (key: string) => {
+      if (key === 'errors.unknown') return '未知错误';
+      throw new Error(`Unexpected key ${key}`);
+    };
+    expect(formatError(null, t)).toBe('未知错误');
+    expect(formatError(undefined, t)).toBe('未知错误');
+    expect(formatError(circular, t)).toBe('未知错误');
   });
 });
 

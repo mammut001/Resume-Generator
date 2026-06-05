@@ -47,6 +47,7 @@ export type TranslationSchema = {
   };
   localeSwitcher: {
     label: string;
+    hint: string;
   };
   tabs: {
     start: string;
@@ -518,6 +519,9 @@ export type TranslationSchema = {
     present: string;
     educationDegreeConnector: string;
   };
+  errors: {
+    unknown: string;
+  };
   versionHistory: {
     manualSaveLabel: string;
     templateChangeLabel: string;
@@ -527,5 +531,6 @@ export type TranslationSchema = {
     noSavedSnapshots: string;
   };
 };
+
 
 export type TranslationKey = NestedKeyOf<TranslationSchema>;

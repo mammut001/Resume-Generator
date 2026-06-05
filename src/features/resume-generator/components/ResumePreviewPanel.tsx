@@ -54,7 +54,7 @@ export function ResumePreviewPanel() {
         }
       } catch (err) {
         setSvgHtml(null);
-        setRenderStatus('error', formatError(err));
+        setRenderStatus('error', formatError(err, t));
       }
     }, 600);
   }, [setRenderStatus, setSvgHtml, t, typstSource]);
@@ -73,7 +73,7 @@ export function ResumePreviewPanel() {
       await copyTypstSource(typstSource);
       toast.success(t('toast.copiedToClipboard'));
     } catch (err) {
-      toast.error(t('toast.failedToCopy'), { description: formatError(err) });
+      toast.error(t('toast.failedToCopy'), { description: formatError(err, t) });
     }
   };
 
@@ -82,7 +82,7 @@ export function ResumePreviewPanel() {
       downloadTypstSource(typstSource, resume, documentTitle);
       toast.success(t('toast.typstDownloaded'));
     } catch (err) {
-      toast.error(t('toast.failedToDownload'), { description: formatError(err) });
+      toast.error(t('toast.failedToDownload'), { description: formatError(err, t) });
     }
   };
 
@@ -112,7 +112,7 @@ export function ResumePreviewPanel() {
         issueCodes,
         reason: stage === 'render' ? 'render_failed' : 'download_failed',
       });
-      toast.error(t('toast.failedToDownloadPdf'), { description: formatError(err) });
+      toast.error(t('toast.failedToDownloadPdf'), { description: formatError(err, t) });
     }
   };
 

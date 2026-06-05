@@ -18,6 +18,7 @@ export const zhCN = {
   },
   localeSwitcher: {
     label: '语言',
+    hint: '仅切换界面语言，你的简历内容保持原样。',
   },
   tabs: {
     start: '开始',
@@ -581,6 +582,9 @@ export const zhCN = {
     projects: '项目',
     present: '至今',
     educationDegreeConnector: '，',
+  },
+  errors: {
+    unknown: '未知错误',
   },
   versionHistory: {
     manualSaveLabel: '手动保存',

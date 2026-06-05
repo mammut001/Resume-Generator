@@ -18,6 +18,7 @@ export const en = {
   },
   localeSwitcher: {
     label: 'Language',
+    hint: 'Switches the app interface only. Your resume content stays as you wrote it.',
   },
   tabs: {
     start: 'Start',
@@ -581,6 +582,9 @@ export const en = {
     projects: 'Projects',
     present: 'Present',
     educationDegreeConnector: ' in ',
+  },
+  errors: {
+    unknown: 'Unknown error',
   },
   versionHistory: {
     manualSaveLabel: 'Manual save',

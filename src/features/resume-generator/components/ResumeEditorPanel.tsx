@@ -199,6 +199,7 @@ function LanguageSwitcher() {
           ))}
         </SelectContent>
       </Select>
+      <p className="px-0.5 text-[10px] leading-snug text-slate-500">{t('localeSwitcher.hint')}</p>
     </div>
   );
 }
@@ -307,7 +308,7 @@ export function StartIntakeSection({
     try {
       setUsage(await getIntakeUsage());
     } catch (err) {
-      setError(formatError(err));
+      setError(formatError(err, t));
     }
   }, []);
 
@@ -382,7 +383,7 @@ export function StartIntakeSection({
       }
     } catch (err) {
       clearPdfStatusTimers();
-      setError(formatError(err));
+      setError(formatError(err, t));
       setIntakeStatus('error');
       trackAnalyticsEvent('intake_failed', { source: 'pdf', reason: classifyIntakeFailureReason(err) });
       await refreshUsage();
@@ -437,7 +438,7 @@ export function StartIntakeSection({
       });
       await refreshUsage();
     } catch (err) {
-      setError(formatError(err));
+      setError(formatError(err, t));
       setIntakeStatus('error');
       trackAnalyticsEvent('intake_failed', { source: 'text', reason: classifyIntakeFailureReason(err) });
       await refreshUsage();
@@ -1474,7 +1475,7 @@ export function ExportSection() {
       await copyTypstSource(typstSource);
       toast.success(t('toast.copiedSource'));
     } catch (error) {
-      toast.error(t('toast.copyFailed'), { description: formatError(error) });
+      toast.error(t('toast.copyFailed'), { description: formatError(error, t) });
     }
   };
 
@@ -1483,7 +1484,7 @@ export function ExportSection() {
       downloadTypstSource(typstSource, resume, documentTitle);
       toast.success(t('toast.typstDownloaded'));
     } catch (error) {
-      toast.error(t('toast.downloadFailed'), { description: formatError(error) });
+      toast.error(t('toast.downloadFailed'), { description: formatError(error, t) });
     }
   };
 
@@ -1513,13 +1514,13 @@ export function ExportSection() {
       toast.success(t('toast.pdfDownloaded'));
     } catch (error) {
       setExportStatus('error');
-      setExportError(formatError(error));
+      setExportError(formatError(error, t));
       trackAnalyticsEvent('export_failed', {
         format: 'pdf',
         issueCodes,
         reason: stage === 'render' ? 'render_failed' : 'download_failed',
       });
-      toast.error(t('toast.pdfDownloadFailed'), { description: formatError(error) });
+      toast.error(t('toast.pdfDownloadFailed'), { description: formatError(error, t) });
     }
   };
 

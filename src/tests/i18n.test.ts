@@ -22,6 +22,17 @@ Object.defineProperty(globalThis, 'localStorage', {
   value: localStorageMock,
 });
 
+// In environments where `window` exists separately from `globalThis`
+// (e.g. jsdom under Vitest), the i18n module's getStorage() may read from
+// `window.localStorage` first. Mirror the mock onto `window` so that the
+// module and the test agree on which storage to clear between cases.
+if (typeof window !== 'undefined' && window !== globalThis) {
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: localStorageMock,
+  });
+}
+
 function mockNavigatorLanguage(language: string, languages: string[] = [language]) {
   Object.defineProperty(globalThis, 'navigator', {
     configurable: true,
@@ -46,11 +57,11 @@ describe('i18n', () => {
     expect(getInitialLocale()).toBe('zh-CN');
   });
 
-  it('maps browser Chinese locales to zh-CN', async () => {
+  it('does not auto-pick browser locales for the initial locale', async () => {
     mockNavigatorLanguage('zh-Hans-CN', ['zh-Hans-CN', 'en-US']);
     const { getInitialLocale } = await import('@/i18n');
 
-    expect(getInitialLocale()).toBe('zh-CN');
+    expect(getInitialLocale()).toBe('en');
   });
 
   it('falls back to en for unsupported browser locales', async () => {
@@ -89,5 +100,21 @@ describe('i18n', () => {
 
     expect(useLocaleStore.getState().locale).toBe('zh-CN');
     expect(localStorageMock.getItem(LOCALE_STORAGE_KEY)).toBe('zh-CN');
+  });
+
+  it('exposes getBrowserLocale separately for UI suggestions', async () => {
+    mockNavigatorLanguage('zh-Hans-CN', ['zh-Hans-CN', 'en-US']);
+    const { getBrowserLocale } = await import('@/i18n');
+
+    expect(getBrowserLocale()).toBe('zh-CN');
+  });
+
+  it('hasExplicitLocaleChoice reflects storage state', async () => {
+    const { hasExplicitLocaleChoice } = await import('@/i18n');
+
+    expect(hasExplicitLocaleChoice()).toBe(false);
+
+    localStorageMock.setItem('resume-generator-locale', 'zh-CN');
+    expect(hasExplicitLocaleChoice()).toBe(true);
   });
 });

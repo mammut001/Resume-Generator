@@ -80,7 +80,7 @@ export function ResumeTailoringPanel() {
       });
       setUsage(previous => previous ? { ...previous, remainingAttempts: Math.max(previous.remainingAttempts - 1, 0) } : previous);
     } catch (requestError) {
-      setError(formatError(requestError));
+      setError(formatError(requestError, t));
       setStatus('error');
     }
   };

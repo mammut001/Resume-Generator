@@ -92,8 +92,17 @@ export function getBrowserLocale(): SupportedLocale {
   return DEFAULT_LOCALE;
 }
 
+export function hasExplicitLocaleChoice(): boolean {
+  return readStoredLocale() !== null;
+}
+
 export function getInitialLocale(): SupportedLocale {
-  return readStoredLocale() || getBrowserLocale() || DEFAULT_LOCALE;
+  // Default to the explicit stored choice; otherwise stay on DEFAULT_LOCALE
+  // instead of silently switching the UI based on the browser's locale.
+  // Users opt into a non-default language via the in-app language switcher,
+  // and `getBrowserLocale()` remains available for callers that want to
+  // surface a one-time language suggestion.
+  return readStoredLocale() || DEFAULT_LOCALE;
 }
 
 function persistLocale(locale: SupportedLocale): void {
