@@ -582,6 +582,7 @@ export const en = {
     projects: 'Projects',
     present: 'Present',
     educationDegreeConnector: ' in ',
+    untitledName: 'Resume',
   },
   errors: {
     unknown: 'Unknown error',

@@ -518,6 +518,7 @@ export type TranslationSchema = {
     projects: string;
     present: string;
     educationDegreeConnector: string;
+    untitledName: string;
   };
   errors: {
     unknown: string;

@@ -582,6 +582,7 @@ export const zhCN = {
     projects: '项目',
     present: '至今',
     educationDegreeConnector: '，',
+    untitledName: '简历',
   },
   errors: {
     unknown: '未知错误',

@@ -81,6 +81,20 @@ describe('resumeToTypst', () => {
 
     expect(result).toContain('== 工作经历');
     expect(result).toContain('== 教育经历');
+    expect(result).toContain('== 项目');
+  });
+
+  it('localizes the Projects section header in every template', () => {
+    const zhResume = getDefaultResume('zh-CN');
+    const enBasic = renderResumeToTypst(defaultResume, 'clean-professional', 'en');
+    const zhBasic = renderResumeToTypst(zhResume, 'clean-professional', 'zh-CN');
+    const zhRenderCv = renderResumeToTypst(zhResume, 'rendercv', 'zh-CN');
+    const zhBrilliant = renderResumeToTypst(zhResume, 'brilliant-cv', 'zh-CN');
+
+    expect(enBasic).toContain('== Projects');
+    expect(zhBasic).toContain('== 项目');
+    expect(zhRenderCv).toContain('== 项目');
+    expect(zhBrilliant).toContain('cv-section("项目")');
   });
 
   it('adds Chinese language hints for Chinese Typst output', () => {

@@ -127,12 +127,13 @@ function compactLines(lines: Array<string | undefined | null>): string[] {
   return lines.filter((line): line is string => Boolean(line && line.trim()));
 }
 
-function firstLastName(fullName: string): { firstName: string; lastName: string; displayName?: string } {
+function firstLastName(fullName: string, locale: SupportedLocale = 'en'): { firstName: string; lastName: string; displayName?: string } {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
     return { firstName: parts.slice(0, -1).join(' '), lastName: parts.at(-1) || '' };
   }
-  return { firstName: fullName || 'Resume', lastName: '', displayName: fullName || 'Resume' };
+  const fallback = translate(locale, 'document.untitledName');
+  return { firstName: fullName || fallback, lastName: '', displayName: fullName || fallback };
 }
 
 function resumeKeywords(resume: ResumeData): string[] {
@@ -146,7 +147,7 @@ function basicResumeTemplate(resume: ResumeData, locale: SupportedLocale): strin
     renderBasicExperience(resume, locale),
     renderBasicEducation(resume, locale),
     renderBasicSkills(resume, locale),
-    renderBasicProjects(resume),
+    renderBasicProjects(resume, locale),
   ]).join('\n\n');
 
   return `#import "@preview/basic-resume:0.2.9": *
@@ -192,9 +193,9 @@ function renderBasicSkills(resume: ResumeData, locale: SupportedLocale): string 
   return `== ${escapeTypst(translate(locale, 'document.skills'))}\n\n${resume.skills.map(skill => `*${escapeTypst(skill.category)}:* ${escapeTypst(skill.items.join(', '))}`).join('\n')}`;
 }
 
-function renderBasicProjects(resume: ResumeData): string {
+function renderBasicProjects(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.projects.length) return '';
-  return `== Projects\n\n${resume.projects.map(project => {
+  return `== ${escapeTypst(translate(locale, 'document.projects'))}\n\n${resume.projects.map(project => {
     const bullets = project.bullets.filter(Boolean).map(bullet => `- ${escapeTypst(bullet)}`).join('\n');
     return `#project(\n  name: ${typstString(project.name)},\n  role: ${typstString(project.description)},\n  url: ${typstString(project.url || '')},\n)\n${bullets}`;
   }).join('\n\n')}`;
@@ -242,7 +243,7 @@ ${renderRenderCvEducation(resume, locale)}
 
 ${renderRenderCvSkills(resume, locale)}
 
-${renderRenderCvProjects(resume)}
+${renderRenderCvProjects(resume, locale)}
 `;
 }
 
@@ -264,14 +265,14 @@ function renderRenderCvSkills(resume: ResumeData, locale: SupportedLocale): stri
   return `== ${escapeTypst(translate(locale, 'document.skills'))}\n\n${resume.skills.map(skill => `*${escapeTypst(skill.category)}:* ${escapeTypst(skill.items.join(', '))}`).join('\n')}`;
 }
 
-function renderRenderCvProjects(resume: ResumeData): string {
+function renderRenderCvProjects(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.projects.length) return '';
-  return `== Projects\n\n${resume.projects.map(project => `#regular-entry(\n  ${typstContent(`*${project.name}*${project.url ? ` -- ${project.url}` : ''}`)},\n  ${typstContent(project.description)},\n  main-column-second-row: [\n${project.bullets.filter(Boolean).map(bullet => `    - ${escapeTypst(bullet)}`).join('\n')}\n  ],\n)`).join('\n\n')}`;
+  return `== ${escapeTypst(translate(locale, 'document.projects'))}\n\n${resume.projects.map(project => `#regular-entry(\n  ${typstContent(`*${project.name}*${project.url ? ` -- ${project.url}` : ''}`)},\n  ${typstContent(project.description)},\n  main-column-second-row: [\n${project.bullets.filter(Boolean).map(bullet => `    - ${escapeTypst(bullet)}`).join('\n')}\n  ],\n)`).join('\n\n')}`;
 }
 
 function brilliantCvTemplate(resume: ResumeData, locale: SupportedLocale): string {
   const accentColor = normalizeHexColor(resume.design?.accentColor || resumeDesignDefaults.accentColor);
-  const { firstName, lastName, displayName } = firstLastName(resume.personal.fullName);
+  const { firstName, lastName, displayName } = firstLastName(resume.personal.fullName, locale);
   const keywords = resumeKeywords(resume).map(typstString).join(', ');
   const personalInfo = compactLines([
     resume.personal.email ? `email: ${typstString(resume.personal.email)}` : '',
@@ -341,7 +342,7 @@ ${renderBrilliantEducation(resume, locale)}
 
 ${renderBrilliantSkills(resume, locale)}
 
-${renderBrilliantProjects(resume)}
+${renderBrilliantProjects(resume, locale)}
 `;
 }
 
@@ -373,9 +374,9 @@ function renderBrilliantSkills(resume: ResumeData, locale: SupportedLocale): str
   return `#cv-section(${typstString(translate(locale, 'document.skills'))})\n${resume.skills.map(skill => `#cv-skill(type: ${typstString(skill.category)}, info: ${typstString(skill.items.join(', '))})`).join('\n')}`;
 }
 
-function renderBrilliantProjects(resume: ResumeData): string {
+function renderBrilliantProjects(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.projects.length) return '';
-  return `#cv-section("Projects")
+  return `#cv-section(${typstString(translate(locale, 'document.projects'))})
 ${resume.projects.map(project => {
     const description = [project.description, ...project.bullets.map(bullet => `• ${bullet}`)].filter(Boolean).join(' ');
     return `#cv-entry(

@@ -103,3 +103,6 @@ public/uploads/
 /research/ui-coherence/artifacts
 /docs
 /research
+
+# Stray artifact directories from patch / test runs
+/undefined/
