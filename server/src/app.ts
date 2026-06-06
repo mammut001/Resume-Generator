@@ -7,6 +7,7 @@ import { withObservability } from './observability/middleware.js';
 import { createObservabilitySink } from './observability/sink.js';
 import { ObservabilityConfig, ObservabilitySink } from './observability/types.js';
 import { createIntakeRoute, IntakeRouteOptions } from './routes/intake.js';
+import { createAnalyticsRoute, AnalyticsRouteOptions } from './routes/analytics.js';
 import { createObservabilityRoute } from './routes/observability.js';
 import { createRenderTypstRoute, RenderTypstRouteOptions } from './routes/renderTypst.js';
 import { createTailoringRoute, TailoringRouteOptions } from './routes/tailoring.js';
@@ -18,6 +19,7 @@ export type RenderApp = ((req: IncomingMessage, res: ServerResponse) => Promise<
 export type RenderServerOptions = RenderTypstRouteOptions & IntakeRouteOptions & TailoringRouteOptions & {
   observabilityConfig?: ObservabilityConfig;
   observabilitySink?: ObservabilitySink;
+  analyticsOptions?: AnalyticsRouteOptions;
   staticDir?: string;
 };
 
@@ -25,6 +27,7 @@ export function createApp(options: RenderServerOptions = {}): RenderApp {
   const renderTypstRoute = createRenderTypstRoute(options);
   const intakeRoute = createIntakeRoute(options);
   const tailoringRoute = createTailoringRoute(options);
+  const analyticsRoute = createAnalyticsRoute(options.analyticsOptions || {});
   const staticRoot = options.staticDir ? resolve(options.staticDir) : undefined;
   const observabilityConfig = options.observabilityConfig
     || (options.observabilitySink
@@ -64,6 +67,16 @@ export function createApp(options: RenderServerOptions = {}): RenderApp {
       return;
     }
 
+    if (url.pathname.startsWith('/api/analytics/')) {
+      try {
+        await analyticsRoute(req, res, url);
+      } catch (error) {
+        const { statusCode, body } = toRenderError(error);
+        sendJsonError(res, statusCode, body);
+      }
+      return;
+    }
+
     if (url.pathname.startsWith('/api/tailor/')) {
       await tailoringRoute(req, res, url);
       return;
@@ -100,6 +113,13 @@ export function createApp(options: RenderServerOptions = {}): RenderApp {
   };
 
   return observedApp;
+}
+
+function sendJsonError(res: ServerResponse, statusCode: number, body: unknown) {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(body));
 }
 
 function serveStaticFile(res: ServerResponse, filePath: string, staticRoot: string | undefined, headOnly = false) {

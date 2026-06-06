@@ -86,6 +86,12 @@ const app = createApp({
     timeoutMs: parsePositiveIntegerEnv(process.env.OPENAI_TIMEOUT_MS, 60_000),
   },
   allowedOrigin: process.env.TYPST_RENDER_ALLOWED_ORIGIN || '*',
+  analyticsOptions: {
+    allowedOrigin: process.env.TYPST_RENDER_ALLOWED_ORIGIN || '*',
+    ...(process.env.RESUME_ANALYTICS_SQLITE_PATH ? { databasePath: process.env.RESUME_ANALYTICS_SQLITE_PATH } : {}),
+    hmacSecret: process.env.RESUME_ANALYTICS_HMAC_SECRET || process.env.RESUME_ANALYTICS_SUMMARY_TOKEN || 'analytics',
+    isAuthorized: token => Boolean(process.env.RESUME_ANALYTICS_SUMMARY_TOKEN && token === process.env.RESUME_ANALYTICS_SUMMARY_TOKEN),
+  },
   observabilityConfig: resolveObservabilityConfigFromEnv(process.env),
   staticDir: process.env.RESUME_STATIC_DIR,
 });
