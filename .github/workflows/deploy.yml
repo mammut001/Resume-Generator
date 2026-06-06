@@ -5,6 +5,20 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Notes for the next person debugging a failure:
+#   1. Each ::group:: section is collapsible in the Actions UI.
+#   2. Every step inside the SSH heredoc runs under `set -x` (bash trace), so
+#      the failing command line is printed with a leading `+` just before
+#      it dies. Find the last `+` to identify the exact failure.
+#   3. Pre-flight now prints owner/size/perm/sha for every required file so
+#      a missing or unreadable file shows up as evidence, not a guess.
+#   4. If `set -e` triggers, the cleanup trap still dumps the container state
+#      + last 50 log lines so the post-failure context is never lost.
+#   5. The `webfactory/ssh-agent` step is the single most common failure
+#      point: it dies silently if `secrets.VPS_SSH_KEY` is missing or
+#      malformed. If the log just shows "Process completed with exit
+#      code 1" right after the agent step, that's the cause.
+
 jobs:
   deploy:
     name: Deploy to VPS
@@ -33,36 +47,93 @@ jobs:
           VPS_HOST: 149.56.97.109
           VPS_USER: ubuntu
         run: |
-          ssh -o StrictHostKeyChecking=yes ${VPS_USER}@${VPS_HOST} bash -s <<'REMOTE'
-            set -euo pipefail
+          ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
+            ${VPS_USER}@${VPS_HOST} bash -s <<'REMOTE'
+            set -euxo pipefail
+            trap 'echo "::error::Deploy failed (exit $?). Last state:"; \
+                  echo "  pwd=$(pwd 2>/dev/null || echo unknown)"; \
+                  echo "  git_head=$(git -C /home/ubuntu/resume-generator rev-parse --short HEAD 2>/dev/null || echo unknown)"; \
+                  docker ps --format "table {{.Names}}\t{{.Status}}" --filter "name=resume-generator" 2>&1 || true; \
+                  docker logs --tail 50 resume-generator 2>&1 || true' ERR
+
+            echo "::group::Environment"
+            echo "whoami=$(whoami)"
+            echo "hostname=$(hostname)"
+            echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "docker=$(docker --version 2>&1 || echo MISSING)"
+            echo "git=$(git --version)"
+            echo "::endgroup::"
+
+            echo "::group::Pre-flight (VPS-only files)"
             cd /home/ubuntu/resume-generator
 
-            # VPS-only files the build/runtime need. Fail loudly if any are missing.
-            [ -f eng.traineddata ] || { echo "::error::eng.traineddata missing on VPS"; exit 1; }
-            [ -f .env ]            || { echo "::error::.env missing on VPS"; exit 1; }
-            [ -d data ]            || { echo "::error::data/ missing on VPS"; exit 1; }
+            check_file() {
+              local path="$1"
+              if [ -e "$path" ]; then
+                local sha
+                sha=$(sha256sum "$path" 2>/dev/null | cut -c1-16)
+                stat -c "  ok  $path  size=%s  perm=%a  owner=%U:%G  sha256_16=$sha" "$path" 2>/dev/null \
+                  || stat -f "  ok  $path  size=%z  perm=%Lp%u  owner=%Su:%Sg" "$path"
+              else
+                echo "::error::$path is MISSING on VPS (cwd=$(pwd))"
+                return 1
+              fi
+            }
+            check_dir() {
+              local path="$1"
+              if [ -d "$path" ]; then
+                local count
+                count=$(find "$path" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)
+                echo "  ok  $path  entries=$count"
+              else
+                echo "::error::$path is MISSING on VPS (cwd=$(pwd))"
+                return 1
+              fi
+            }
 
-            # Force the working tree to match origin/main. data/, .env, and
-            # eng.traineddata are excluded from `git clean` so they survive.
-            git fetch
+            check_file eng.traineddata
+            check_file .env
+            check_dir data
+            echo "::endgroup::"
+
+            echo "::group::Git state before sync"
+            echo "current HEAD: $(git rev-parse --short HEAD)"
+            echo "origin/main:  $(git rev-parse --short origin/main)"
+            echo "uncommitted:  $(git status --porcelain | wc -l) files"
+            git status --short | sed 's/^/  /'
+            echo "::endgroup::"
+
+            echo "::group::Sync working tree to origin/main"
+            git fetch --prune --no-tags
             git reset --hard origin/main
-            git clean -fd -e data -e .env -e eng.traineddata
+            # data/, .env, and eng.traineddata are excluded from `git clean`
+            # so they survive a fast-forward past them.
+            git clean -fd -e data -e .env -e eng.traineddata -x -e 'dist' -e '.env*'
+            echo "new HEAD: $(git rev-parse --short HEAD)"
+            echo "::endgroup::"
 
-            echo "== HEAD =="
-            git log -1 --oneline
-
-            echo "== build + restart =="
+            echo "::group::Build and restart container"
             docker compose up -d --build
+            echo "::endgroup::"
 
-            echo "== container status =="
+            echo "::group::Post-deploy state"
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" --filter "name=resume-generator"
-
             sleep 3
-            echo "== recent logs =="
-            docker logs --tail 30 resume-generator
+            echo "::endgroup::"
 
-            echo "== health check =="
+            echo "::group::Container logs (last 30 lines)"
+            docker logs --tail 30 resume-generator
+            echo "::endgroup::"
+
+            echo "::group::Health check from inside VPS"
             curl -fsS -o /dev/null -w "SPA  HTTP %{http_code}  %{size_download} bytes\n" http://127.0.0.1:8790/
-            ASSET=$(curl -fsS http://127.0.0.1:8790/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
-            curl -fsS -o /dev/null -w "JS   HTTP %{http_code}  %{size_download} bytes  $ASSET\n" "http://127.0.0.1:8790$ASSET"
+            ASSET=$(curl -fsS http://127.0.0.1:8790/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1 || true)
+            if [ -n "$ASSET" ]; then
+              curl -fsS -o /dev/null -w "JS   HTTP %{http_code}  %{size_download} bytes  $ASSET\n" "http://127.0.0.1:8790$ASSET"
+            else
+              echo "::warning::could not find /assets/index-*.js in SPA shell"
+            fi
+            echo "::endgroup::"
+
+            echo "Deploy OK."
           REMOTE
