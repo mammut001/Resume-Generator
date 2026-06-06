@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, FilePlus2, Files, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { Copy, FilePlus2, Files, Pencil, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +40,7 @@ export function ResumeDocumentSwitcher({ className }: { className?: string }) {
   const { t } = useI18n();
   const activeDocument = documents.find(document => document.id === activeDocumentId) || documents[0];
   const [draftTitle, setDraftTitle] = React.useState(activeDocument?.title || '');
+  const [isManageOpen, setIsManageOpen] = React.useState(false);
 
   React.useEffect(() => {
     setDraftTitle(activeDocument?.title || '');
@@ -82,7 +83,25 @@ export function ResumeDocumentSwitcher({ className }: { className?: string }) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        className="h-8 w-full justify-center gap-1.5 border-slate-200 bg-white px-2.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 sm:hidden"
+        onClick={() => setIsManageOpen(previous => !previous)}
+        aria-expanded={isManageOpen}
+        aria-controls="resume-document-manage-controls"
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+        {isManageOpen ? t('documents.manageHide') : t('documents.manageShow')}
+      </Button>
+
+      <div
+        id="resume-document-manage-controls"
+        className={cn(
+          'grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2',
+          isManageOpen ? 'grid' : 'hidden sm:grid',
+        )}
+      >
         <Input
           className={inputClass}
           value={draftTitle}

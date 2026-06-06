@@ -65,6 +65,8 @@ export const en = {
     deleteDialogDescription: 'This removes it from this browser. Your other resumes will stay available.',
     deleteDialogCancel: 'Cancel',
     deleteDialogConfirm: 'Delete resume',
+    manageShow: 'Manage documents',
+    manageHide: 'Hide document controls',
   },
   onboarding: {
     eyebrow: 'Start here',
