@@ -381,6 +381,9 @@ export type TranslationSchema = {
     tailoredDraftApplied: string;
     localeSampleLoaded: string;
     localeSampleDescription: string;
+    localeInterfaceOnlyTitle: string;
+    localeInterfaceOnlyDescription: string;
+    localeLoadSampleAction: string;
   };
   observability: {
     title: string;

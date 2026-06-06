@@ -421,6 +421,9 @@ export const en = {
     tailoredDraftApplied: 'Tailored copy created',
     localeSampleLoaded: 'Sample content updated for the new language',
     localeSampleDescription: 'Replaced the starter resume with the localized sample so you can see real translations immediately.',
+    localeInterfaceOnlyTitle: 'Switched interface to {{locale}}',
+    localeInterfaceOnlyDescription: 'Your resume content was not changed because you have already edited it. Use this action to replace it with the localized sample if you want to see the translation in the editor too.',
+    localeLoadSampleAction: 'Load {{locale}} sample',
   },
   observability: {
     title: 'Backend Observability',

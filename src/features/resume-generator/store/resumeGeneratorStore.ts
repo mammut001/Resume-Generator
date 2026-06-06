@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getCurrentLocale, translate, useLocaleStore } from '@/i18n';
+import { getCurrentLocale, LOCALE_LABELS, translate, useLocaleStore } from '@/i18n';
 import { trackAnalyticsEvent } from '@/lib/analytics';
 import { toast } from 'sonner';
 import { ResumeData, ResumeDocument, ResumeIntakeWarning, ResumeVersion, ResumeWorkspace } from '@/types/resume';
@@ -539,5 +539,25 @@ useLocaleStore.subscribe((state, previousState) => {
 
   useResumeGeneratorStore.setState({
     typstSource: renderResumeToTypst(current.resume, current.resume.templateId, state.locale),
+  });
+  // The user has already edited the resume, so we don't silently overwrite
+  // their work. Surface the "interface only" behavior and offer a one-click
+  // "swap to the localized sample" path so users who expect the resume
+  // content to translate can still get that with a single click.
+  const localeLabel = LOCALE_LABELS[state.locale];
+  toast.info(
+    translate(state.locale, 'toast.localeInterfaceOnlyTitle', { locale: localeLabel }),
+    {
+      description: translate(state.locale, 'toast.localeInterfaceOnlyDescription'),
+      action: {
+        label: translate(state.locale, 'toast.localeLoadSampleAction', { locale: localeLabel }),
+      onClick: () => {
+        const nextResume = getDefaultResume(state.locale);
+        useResumeGeneratorStore.getState().setResume(nextResume);
+        toast.success(translate(state.locale, 'toast.localeSampleLoaded'), {
+          description: translate(state.locale, 'toast.localeSampleDescription'),
+        });
+      },
+    },
   });
 });

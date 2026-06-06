@@ -10,6 +10,7 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
   },
 }));
 
@@ -48,7 +49,7 @@ describe('locale switch replaces the starter resume sample', () => {
     );
   });
 
-  it('preserves user-edited resumes and skips the toast', () => {
+  it('preserves user-edited resumes and offers a one-click sample swap', () => {
     const enStarter = useResumeGeneratorStore.getState().resume;
     const customized = {
       ...enStarter,
@@ -61,5 +62,14 @@ describe('locale switch replaces the starter resume sample', () => {
     const after = useResumeGeneratorStore.getState().resume;
     expect(after.personal.fullName).toBe('Custom User Name');
     expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledTimes(1);
+    const infoArgs = (toast.info as ReturnType<typeof vi.fn>).mock.calls[0];
+    const options = infoArgs[1] as { action: { label: string; onClick: () => void } };
+    expect(typeof options.action.label).toBe('string');
+    expect(options.action.label.length).toBeGreaterThan(0);
+    options.action.onClick();
+    const replaced = useResumeGeneratorStore.getState().resume;
+    expect(replaced.personal.fullName).toBe(getDefaultResume('zh-CN').personal.fullName);
+    expect(toast.success).toHaveBeenCalledTimes(1);
   });
 });

@@ -421,6 +421,9 @@ export const zhCN = {
     tailoredDraftApplied: '已创建定制副本',
     localeSampleLoaded: '已切换为新语言的示例内容',
     localeSampleDescription: '已用本地化示例替换原简历，让你立刻看到真实翻译效果。',
+    localeInterfaceOnlyTitle: '已切换界面为 {{locale}}',
+    localeInterfaceOnlyDescription: '因为你已经编辑过简历，简历内容没有改动。如果想在编辑器里也看到翻译后的示例，可以点这里的按钮替换。',
+    localeLoadSampleAction: '加载 {{locale}} 示例',
   },
   observability: {
     title: '后端可观测性',
