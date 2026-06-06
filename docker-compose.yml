@@ -16,7 +16,14 @@ services:
       RESUME_INTAKE_ATTEMPT_LIMIT: ${RESUME_INTAKE_ATTEMPT_LIMIT:-30}
       RESUME_TAILORING_ATTEMPT_LIMIT: ${RESUME_TAILORING_ATTEMPT_LIMIT:-30}
       RESUME_INTAKE_PDF_OCR_ENABLED: ${RESUME_INTAKE_PDF_OCR_ENABLED:-false}
-    ports:
+      # Frontend analytics ingestion. With RESUME_ANALYTICS_SQLITE_PATH set and VITE_ANALYTICS_ENDPOINT
+      # pointing to /api/analytics/event (default in the built frontend), the browser sendBeacon sink
+      # persists sanitized events to this sqlite file under /app/data.
+      RESUME_ANALYTICS_SQLITE_PATH: ${RESUME_ANALYTICS_SQLITE_PATH:-}
+      RESUME_ANALYTICS_SUMMARY_TOKEN: ${RESUME_ANALYTICS_SUMMARY_TOKEN:-}
+      RESUME_ANALYTICS_HMAC_SECRET: ${RESUME_ANALYTICS_HMAC_SECRET:-}
+      VITE_ANALYTICS_ENDPOINT: ${VITE_ANALYTICS_ENDPOINT:-/api/analytics/event}
+      ports:
       - "${RESUME_HOST_PORT:-8790}:8787"
     volumes:
       - ./data:/app/data

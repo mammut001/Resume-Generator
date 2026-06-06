@@ -26,10 +26,50 @@ const sensitiveKeyPattern = /(resume|job|description|text|content|raw|model|name
 
 export function trackAnalyticsEvent(event: AnalyticsEventName, payload: AnalyticsPayload = {}): void {
   const safePayload = sanitizeAnalyticsPayload(payload);
+  const endpoint = resolveAnalyticsEndpoint();
 
   if (isAnalyticsDebugEnabled()) {
     console.info('[analytics]', { event, payload: safePayload });
   }
+
+  if (endpoint) {
+    sendAnalyticsEvent(endpoint, event, safePayload);
+  }
+}
+
+export function sendAnalyticsEvent(
+  endpoint: string,
+  event: AnalyticsEventName,
+  safePayload: AnalyticsPayload,
+  now: () => Date = () => new Date(),
+  beacon: (url: string, data: Blob) => boolean = defaultSendBeacon,
+): void {
+  if (typeof beacon !== 'function') return;
+  const body = JSON.stringify({
+    event,
+    payload: safePayload,
+    occurredAt: now().toISOString(),
+  });
+  try {
+    beacon(endpoint, new Blob([body], { type: 'application/json' }));
+  } catch {
+    // sendBeacon can throw on quota / insecure-context errors; analytics must never break the app.
+  }
+}
+
+function defaultSendBeacon(url: string, data: Blob): boolean {
+  if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') return false;
+  return navigator.sendBeacon(url, data);
+}
+
+export function resolveAnalyticsEndpoint(): string | null {
+  if (typeof import.meta === 'undefined' || !import.meta.env) return null;
+  const raw = import.meta.env.VITE_ANALYTICS_ENDPOINT;
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith('/')) return null;
+  return trimmed;
 }
 
 export function sanitizeAnalyticsPayload(payload: AnalyticsPayload): AnalyticsPayload {
