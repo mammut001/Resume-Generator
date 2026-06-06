@@ -146,6 +146,31 @@ describe('ResumeDocumentSwitcher', () => {
     expect(JSON.stringify(analyticsInfo.mock.calls)).not.toContain('Frontend Resume');
   });
 
+  it('hides the rename/duplicate/delete controls on narrow screens until the user expands them', async () => {
+    await renderSwitcher();
+
+    const manageControls = container.querySelector('#resume-document-manage-controls');
+    expect(manageControls).not.toBeNull();
+    expect(manageControls?.className).toContain('hidden');
+
+    const manageButton = getBodyButtonExact('Manage documents');
+    await act(async () => {
+      manageButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const expandedControls = container.querySelector('#resume-document-manage-controls');
+    expect(expandedControls?.className).not.toContain('hidden');
+    expect(expandedControls?.className).toContain('grid');
+
+    const collapseButton = getBodyButtonExact('Hide document controls');
+    await act(async () => {
+      collapseButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const collapsedAgain = container.querySelector('#resume-document-manage-controls');
+    expect(collapsedAgain?.className).toContain('hidden');
+  });
+
   async function renderSwitcher() {
     await act(async () => {
       root.render(<ResumeDocumentSwitcher />);

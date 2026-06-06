@@ -65,6 +65,8 @@ export const zhCN = {
     deleteDialogDescription: '这会从当前浏览器中移除此简历。其他简历仍会保留。',
     deleteDialogCancel: '取消',
     deleteDialogConfirm: '删除简历',
+    manageShow: '管理文档',
+    manageHide: '收起文档操作',
   },
   onboarding: {
     eyebrow: '从这里开始',
