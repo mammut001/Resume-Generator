@@ -58,6 +58,9 @@ import { analyzeExportReadiness, type ExportReadinessIssue, type ExportReadiness
 import { formatError } from '../lib/formatError';
 import { formatIntakeWarningMessage } from '../lib/formatIntakeWarning';
 import { applyIntakeDraftToResume, getPdfAnalysisTone, type PdfPageRangeValidationError, validatePdfPageRange } from '../lib/pdfIntakeFlow';
+import { getDefaultResume } from '../data/defaultResume';
+import { isStarterResume } from '../lib/resumeOnboarding';
+import { useResumeGeneratorStore } from '../store/resumeGeneratorStore';
 import { generateResumeFromPdf, generateResumeFromText, getIntakeUsage } from '../lib/resumeIntake';
 import { isStarterResume, shouldShowFirstRunOnboarding } from '../lib/resumeOnboarding';
 import { renderTypstToPdf } from '../lib/typstRenderer';
@@ -180,6 +183,29 @@ export function ResumeEditorPanel() {
 
 function LanguageSwitcher() {
   const { locale, setLocale, t } = useI18n();
+  const { resume, setResume } = useResumeGeneratorStore();
+  const [contentLocale, setContentLocale] = React.useState<SupportedLocale | null>(null);
+
+  // Detect which locale the resume content is in (if any) by matching the starter
+  React.useEffect(() => {
+    for (const candidate of SUPPORTED_LOCALES) {
+      if (isStarterResume(resume, candidate)) {
+        setContentLocale(candidate);
+        return;
+      }
+    }
+    setContentLocale(null); // content has been edited; no clear locale
+  }, [resume]);
+
+  const hasMismatch = contentLocale !== null && contentLocale !== locale;
+
+  const loadLocalizedSample = () => {
+    const sample = getDefaultResume(locale);
+    setResume(sample);
+    toast.success(t('toast.localeSampleLoaded'), {
+      description: t('toast.localeSampleDescription'),
+    });
+  };
 
   return (
     <div className="space-y-1">
@@ -200,6 +226,21 @@ function LanguageSwitcher() {
         </SelectContent>
       </Select>
       <p className="px-0.5 text-[10px] leading-snug text-slate-500">{t('localeSwitcher.hint')}</p>
+      {hasMismatch && contentLocale ? (
+        <button
+          type="button"
+          onClick={loadLocalizedSample}
+          className="flex w-full items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-1.5 py-1 text-left text-[10px] leading-snug text-amber-900 transition hover:bg-amber-100"
+        >
+          <span className="flex-1">
+            <span className="block font-semibold">{t('localeSwitcher.mismatchTitle', { locale: LOCALE_LABELS[contentLocale] })}</span>
+            <span className="block text-amber-800">{t('localeSwitcher.mismatchAction', { locale: LOCALE_LABELS[locale] })}</span>
+          </span>
+          <span className="shrink-0 rounded bg-amber-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">
+            {t('localeSwitcher.mismatchCta', { locale: LOCALE_LABELS[locale] })}
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }

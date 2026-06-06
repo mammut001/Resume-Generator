@@ -18,7 +18,10 @@ export const zhCN = {
   },
   localeSwitcher: {
     label: '语言',
-    hint: '仅切换界面语言，你的简历内容保持原样。',
+    hint: '仅切换界面语言，简历内容保持原样。',
+    mismatchTitle: '内容为 {{locale}}',
+    mismatchAction: '用 {{locale}} 示例替换后，编辑器也会一起切换。',
+    mismatchCta: '加载 {{locale}}',
   },
   tabs: {
     start: '开始',

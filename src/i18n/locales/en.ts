@@ -19,6 +19,9 @@ export const en = {
   localeSwitcher: {
     label: 'Language',
     hint: 'Switches the app interface only. Your resume content stays as you wrote it.',
+    mismatchTitle: 'Content is in {{locale}}',
+    mismatchAction: 'Replace it with the {{locale}} sample to translate the editor.',
+    mismatchCta: 'Load {{locale}}',
   },
   tabs: {
     start: 'Start',

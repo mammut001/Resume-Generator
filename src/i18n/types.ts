@@ -48,6 +48,9 @@ export type TranslationSchema = {
   localeSwitcher: {
     label: string;
     hint: string;
+    mismatchTitle: string;
+    mismatchAction: string;
+    mismatchCta: string;
   };
   tabs: {
     start: string;

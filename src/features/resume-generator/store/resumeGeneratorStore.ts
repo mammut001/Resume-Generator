@@ -549,15 +549,17 @@ useLocaleStore.subscribe((state, previousState) => {
     translate(state.locale, 'toast.localeInterfaceOnlyTitle', { locale: localeLabel }),
     {
       description: translate(state.locale, 'toast.localeInterfaceOnlyDescription'),
+      duration: Number.POSITIVE_INFINITY,
+      dismissible: true,
       action: {
         label: translate(state.locale, 'toast.localeLoadSampleAction', { locale: localeLabel }),
-      onClick: () => {
-        const nextResume = getDefaultResume(state.locale);
-        useResumeGeneratorStore.getState().setResume(nextResume);
-        toast.success(translate(state.locale, 'toast.localeSampleLoaded'), {
-          description: translate(state.locale, 'toast.localeSampleDescription'),
-        });
-      },
+        onClick: () => {
+          const nextResume = getDefaultResume(state.locale);
+          useResumeGeneratorStore.getState().setResume(nextResume);
+          toast.success(translate(state.locale, 'toast.localeSampleLoaded'), {
+            description: translate(state.locale, 'toast.localeSampleDescription'),
+          });
+        },
     },
   });
 });
