@@ -5,31 +5,37 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Notes for the next person debugging a failure:
-#   1. Each ::group:: section is collapsible in the Actions UI.
-#   2. Every step inside the SSH heredoc runs under `set -x` (bash trace), so
-#      the failing command line is printed with a leading `+` just before
-#      it dies. Find the last `+` to identify the exact failure.
-#   3. Pre-flight now prints owner/size/perm/sha for every required file so
-#      a missing or unreadable file shows up as evidence, not a guess.
-#   4. If `set -e` triggers, the cleanup trap still dumps the container state
-#      + last 50 log lines so the post-failure context is never lost.
-#   5. The `webfactory/ssh-agent` step is the single most common failure
-#      point: it dies silently if `secrets.VPS_SSH_KEY` is missing or
-#      malformed. If the log just shows "Process completed with exit
-#      code 1" right after the agent step, that's the cause.
+permissions:
+  contents: read
+
+concurrency:
+  group: production-vps
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy to VPS
+    name: Deploy ${{ github.sha }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    environment: production
 
     steps:
-      - name: Pin VPS host keys
+      - name: Validate deployment secret
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          if [ -z "$VPS_SSH_KEY" ]; then
+            echo "::error::Repository secret VPS_SSH_KEY is missing. See docs/cicd-deployment.md."
+            exit 1
+          fi
+
+      - name: Configure SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           cat > ~/.ssh/known_hosts <<'EOF'
           |1|dsPACgx2oohoPK+7mwynfNEjbMQ=|FuqgW60uLgxJG66gHRGvFbe2SPw= ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC/BiWUgkehBHXAxmHJsfapaJTlGmBdmKMvRdE3U8iLHwL3/Idx1lzduGA2MruojnsPxeZZ4bhKt7Xpf4rUfY/hSLUc1ePRm8kYxXLJCc5i9/dPGfFKZRqwxErg1DKmo0pLyaxB46zpluyGJuC2Iws8ReKyWeuC02QgTQ42ebrFoG0RXIg2k0vraOG4CzyyLpagnoFaZ1C8bkLGxU9l8JrS63RGgdE0M+wLK4AkkM4YhG4Y+7po8IKKE5DbIw1vH1iW0GXjvmz+Z4eyncW6ggSuddZy4Np1jY7CrLASYfVu1RNXPfnHl2drH1Of+ZI696kTr+hUgEMQDkFTETeRE3rSs8D5ZmlAr8XTf+DOc1NVwqytP634PUc22j7DiNcrltHbRO2uh6ev7I6s0ME1tSM1B9JA2+SElRGItPoHdLXfwASIhSTmSBgYHhghdjnfwQFbt+Sp/TeSLxzhmlhIciTky+3UivX9ToNWWJwUvkSrCrXl/gmq+UScAm6H4R6zlws=
           |1|k9AH0wtIT0ZfxJXFTQTizGMD+kw=|Hd6JOwpcXxEvcghU3o/UWpGG2Oc= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBGB0UU8k71x6q8M+lykxw6QDcwORBLkfHLV9+mJUXSByzvfgtU7B8hkcUePuEXfFEzKymyNqMuXMMxF77P2FwT0=
@@ -37,103 +43,75 @@ jobs:
           EOF
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
-
-      - name: Deploy
+      - name: Sync commit and restart service
         env:
+          DEPLOY_SHA: ${{ github.sha }}
           VPS_HOST: 149.56.97.109
           VPS_USER: ubuntu
         run: |
-          ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
-            ${VPS_USER}@${VPS_HOST} bash -s <<'REMOTE'
-            set -euxo pipefail
-            trap 'echo "::error::Deploy failed (exit $?). Last state:"; \
-                  echo "  pwd=$(pwd 2>/dev/null || echo unknown)"; \
-                  echo "  git_head=$(git -C /home/ubuntu/resume-generator rev-parse --short HEAD 2>/dev/null || echo unknown)"; \
-                  docker ps --format "table {{.Names}}\t{{.Status}}" --filter "name=resume-generator" 2>&1 || true; \
-                  docker logs --tail 50 resume-generator 2>&1 || true' ERR
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
+            "${VPS_USER}@${VPS_HOST}" "DEPLOY_SHA=${DEPLOY_SHA} bash -s" <<'REMOTE'
+            set -Eeuo pipefail
 
-            echo "::group::Environment"
-            echo "whoami=$(whoami)"
-            echo "hostname=$(hostname)"
-            echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "docker=$(docker --version 2>&1 || echo MISSING)"
-            echo "git=$(git --version)"
-            echo "::endgroup::"
+            app_dir=/home/ubuntu/resume-generator
+            repo_url=https://github.com/mammut001/Resume-Generator.git
 
-            echo "::group::Pre-flight (VPS-only files)"
-            cd /home/ubuntu/resume-generator
-
-            check_file() {
-              local path="$1"
-              if [ -e "$path" ]; then
-                local sha
-                sha=$(sha256sum "$path" 2>/dev/null | cut -c1-16)
-                stat -c "  ok  $path  size=%s  perm=%a  owner=%U:%G  sha256_16=$sha" "$path" 2>/dev/null \
-                  || stat -f "  ok  $path  size=%z  perm=%Lp%u  owner=%Su:%Sg" "$path"
-              else
-                echo "::error::$path is MISSING on VPS (cwd=$(pwd))"
-                return 1
-              fi
+            on_error() {
+              local exit_code=$?
+              echo "::error::Deployment failed with exit code ${exit_code}."
+              git -C "$app_dir" status --short --branch 2>/dev/null || true
+              docker compose -f "$app_dir/docker-compose.yml" ps 2>/dev/null || true
+              docker logs --tail 80 resume-generator 2>/dev/null || true
+              exit "$exit_code"
             }
-            check_dir() {
-              local path="$1"
-              if [ -d "$path" ]; then
-                local count
-                count=$(find "$path" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)
-                echo "  ok  $path  entries=$count"
-              else
-                echo "::error::$path is MISSING on VPS (cwd=$(pwd))"
-                return 1
-              fi
-            }
+            trap on_error ERR
 
-            check_file eng.traineddata
-            check_file .env
-            check_dir data
-            echo "::endgroup::"
+            mkdir -p "$app_dir"
+            cd "$app_dir"
 
-            echo "::group::Git state before sync"
-            echo "current HEAD: $(git rev-parse --short HEAD)"
-            echo "origin/main:  $(git rev-parse --short origin/main)"
-            echo "uncommitted:  $(git status --porcelain | wc -l) files"
-            git status --short | sed 's/^/  /'
-            echo "::endgroup::"
+            [ -f .env ] || { echo "::error::$app_dir/.env is missing"; exit 1; }
+            [ -d data ] || { echo "::error::$app_dir/data is missing"; exit 1; }
 
-            echo "::group::Sync working tree to origin/main"
-            git fetch --prune --no-tags
-            git reset --hard origin/main
-            # data/, .env, and eng.traineddata are excluded from `git clean`
-            # so they survive a fast-forward past them.
-            git clean -fd -e data -e .env -e eng.traineddata -x -e 'dist' -e '.env*'
-            echo "new HEAD: $(git rev-parse --short HEAD)"
-            echo "::endgroup::"
-
-            echo "::group::Build and restart container"
-            docker compose up -d --build
-            echo "::endgroup::"
-
-            echo "::group::Post-deploy state"
-            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" --filter "name=resume-generator"
-            sleep 3
-            echo "::endgroup::"
-
-            echo "::group::Container logs (last 30 lines)"
-            docker logs --tail 30 resume-generator
-            echo "::endgroup::"
-
-            echo "::group::Health check from inside VPS"
-            curl -fsS -o /dev/null -w "SPA  HTTP %{http_code}  %{size_download} bytes\n" http://127.0.0.1:8790/
-            ASSET=$(curl -fsS http://127.0.0.1:8790/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1 || true)
-            if [ -n "$ASSET" ]; then
-              curl -fsS -o /dev/null -w "JS   HTTP %{http_code}  %{size_download} bytes  $ASSET\n" "http://127.0.0.1:8790$ASSET"
+            if ! git rev-parse --git-dir >/dev/null 2>&1; then
+              git init
+              git remote add origin "$repo_url"
+            elif ! git remote get-url origin >/dev/null 2>&1; then
+              git remote add origin "$repo_url"
             else
-              echo "::warning::could not find /assets/index-*.js in SPA shell"
+              git remote set-url origin "$repo_url"
             fi
-            echo "::endgroup::"
 
-            echo "Deploy OK."
+            echo "Deploying commit $DEPLOY_SHA"
+            git fetch --prune --no-tags origin main
+            git cat-file -e "${DEPLOY_SHA}^{commit}"
+            git reset --hard "$DEPLOY_SHA"
+            git clean -fdx -e .env -e '.env.*' -e data
+
+            [ "$(git rev-parse HEAD)" = "$DEPLOY_SHA" ] || {
+              echo "::error::VPS checkout does not match the triggering commit"
+              exit 1
+            }
+            [ -f eng.traineddata ] || { echo "::error::eng.traineddata is missing"; exit 1; }
+
+            docker compose config --quiet
+            docker compose up -d --build --force-recreate resume-generator
+
+            healthy=0
+            for attempt in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:8790/health | grep -q '"ok":true'; then
+                healthy=1
+                break
+              fi
+              echo "Waiting for health check (${attempt}/30)..."
+              sleep 2
+            done
+
+            [ "$healthy" -eq 1 ] || {
+              echo "::error::Service did not become healthy within 60 seconds"
+              exit 1
+            }
+
+            curl -fsS -o /dev/null http://127.0.0.1:8790/
+            echo "Deploy OK: $(git rev-parse --short HEAD)"
+            docker compose ps resume-generator
           REMOTE
