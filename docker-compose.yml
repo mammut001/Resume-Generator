@@ -23,7 +23,7 @@ services:
       RESUME_ANALYTICS_SUMMARY_TOKEN: ${RESUME_ANALYTICS_SUMMARY_TOKEN:-}
       RESUME_ANALYTICS_HMAC_SECRET: ${RESUME_ANALYTICS_HMAC_SECRET:-}
       VITE_ANALYTICS_ENDPOINT: ${VITE_ANALYTICS_ENDPOINT:-/api/analytics/event}
-      ports:
+    ports:
       - "${RESUME_HOST_PORT:-8790}:8787"
     volumes:
       - ./data:/app/data
