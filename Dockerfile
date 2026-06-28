@@ -41,6 +41,11 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=8787
 ENV RESUME_STATIC_DIR=/app/dist
+ENV RESUME_AI_USAGE_SQLITE_PATH=/app/data/ai-usage.sqlite
+# Runtime secrets required in production: RESUME_AI_USAGE_HMAC_SECRET, RESUME_ANALYTICS_HMAC_SECRET (if analytics sqlite is used)
+
+RUN mkdir -p /app/data && chown -R node:node /app
+USER node
 
 EXPOSE 8787
 

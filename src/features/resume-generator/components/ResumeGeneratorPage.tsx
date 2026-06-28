@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { useLocaleStore } from '@/i18n';
 import { useI18n } from '@/i18n/useI18n';
 import { trackAnalyticsEvent } from '@/lib/analytics';
 import { ResumeEditorPanel } from './ResumeEditorPanel';
@@ -6,22 +7,23 @@ import { ResumePreviewPanel } from './ResumePreviewPanel';
 import { ToasterComponent } from '@/components/ui/toast';
 
 export function ResumeGeneratorPage() {
-  const { locale } = useI18n();
-  const hasTrackedPageView = useRef(false);
+  const { t } = useI18n();
 
   useEffect(() => {
-    if (hasTrackedPageView.current) return;
-    hasTrackedPageView.current = true;
     trackAnalyticsEvent('page_viewed', {
       path: typeof window !== 'undefined' ? window.location.pathname : '/',
-      locale,
+      locale: useLocaleStore.getState().locale,
     });
-  }, [locale]);
+  }, []);
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-100 lg:flex-row">
-      <ResumeEditorPanel />
-      <ResumePreviewPanel />
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-slate-100/80 lg:flex-row">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ResumeEditorPanel />
+      </main>
+      <aside aria-label={t('a11y.previewPanel')} className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ResumePreviewPanel />
+      </aside>
       <ToasterComponent />
     </div>
   );

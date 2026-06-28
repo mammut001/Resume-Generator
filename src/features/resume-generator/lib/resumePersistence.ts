@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, type SupportedLocale } from '@/i18n';
+import { DEFAULT_LOCALE, getCurrentLocale, translate, type SupportedLocale } from '@/i18n';
 import type { ResumeData, ResumeDocument, ResumeWorkspace } from '@/types/resume';
 import { getDefaultResume } from '../data/defaultResume';
 
@@ -22,12 +22,27 @@ export function loadResumeWorkspace(locale: SupportedLocale = DEFAULT_LOCALE): R
   }
 }
 
-export function saveResumeWorkspace(workspace: ResumeWorkspace): void {
+let persistenceFailureNotified = false;
+
+export function saveResumeWorkspace(workspace: ResumeWorkspace): boolean {
   try {
     getStorage()?.setItem(RESUME_WORKSPACE_STORAGE_KEY, JSON.stringify(normalizeResumeWorkspace(workspace)));
+    persistenceFailureNotified = false;
+    return true;
   } catch {
     // Persistence must never break editing.
+    return false;
   }
+}
+
+export function shouldNotifyPersistenceFailure(): boolean {
+  if (persistenceFailureNotified) return false;
+  persistenceFailureNotified = true;
+  return true;
+}
+
+export function resetPersistenceFailureNotification(): void {
+  persistenceFailureNotified = false;
 }
 
 export function migrateResumeWorkspace(value: unknown, locale: SupportedLocale = DEFAULT_LOCALE): ResumeWorkspace {
@@ -114,7 +129,7 @@ export function generateResumeDocumentId(): string {
 }
 
 function normalizeDocumentTitle(title: string): string {
-  return title.trim() || 'Untitled Resume';
+  return title.trim() || translate(getCurrentLocale(), 'documents.untitled');
 }
 
 function isResumeDocumentLike(value: unknown): value is ResumeDocument {

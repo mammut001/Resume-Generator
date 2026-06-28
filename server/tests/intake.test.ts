@@ -124,13 +124,16 @@ describe('resume intake API', () => {
 
   it('returns a clear error when a PDF has no extractable text', async () => {
     const blankPdf = await createBlankPdfBuffer();
-    await startServer();
+    await startServer({ intakeAttemptLimit: 1 });
 
     const response = await postPdf({ buffer: blankPdf });
     const payload = await response.json();
 
     expect(response.status).toBe(422);
     expect(payload.error.code).toBe('PDF_TEXT_NOT_FOUND');
+
+    const usageResponse = await fetch(`${baseUrl}/api/intake/usage`);
+    expect(await usageResponse.json()).toEqual({ remainingAttempts: 1, limit: 1, resetAt: null });
   });
 
   it('uses OCR fallback for scanned PDFs when OCR is enabled', async () => {

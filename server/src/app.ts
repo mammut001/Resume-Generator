@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize, relative, resolve } from 'node:path';
 import { RenderHttpError, toRenderError } from './lib/errors.js';
+import { setSecurityHeaders } from './lib/securityHeaders.js';
 import { DEFAULT_OBSERVABILITY_CONFIG } from './observability/config.js';
 import { withObservability } from './observability/middleware.js';
 import { createObservabilitySink } from './observability/sink.js';
@@ -41,6 +42,7 @@ export function createApp(options: RenderServerOptions = {}): RenderApp {
   });
 
   const app = async function app(req: IncomingMessage, res: ServerResponse) {
+    setSecurityHeaders(res);
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
     if (url.pathname === '/health') {
@@ -110,6 +112,7 @@ export function createApp(options: RenderServerOptions = {}): RenderApp {
     observabilityRoute?.close?.();
     options.intakeUsageStore?.close?.();
     options.tailoringUsageStore?.close?.();
+    analyticsRoute.close?.();
   };
 
   return observedApp;

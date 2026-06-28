@@ -1,18 +1,32 @@
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { RenderHttpError, toRenderError } from '../lib/errors.js';
+import { createRateLimiter } from '../lib/rateLimiter.js';
+import { setSecurityHeaders } from '../lib/securityHeaders.js';
+import { resolveClientIp } from '../observability/ip.js';
 import { recordDomainEvent } from '../observability/requestContext.js';
 import { DEFAULT_MAX_BODY_BYTES, validateRenderTypstRequest } from '../lib/validation.js';
 import { compileTypst, getRenderContentType, TypstCompileOptions } from '../services/typstService.js';
 
+const DEFAULT_RENDER_RATE_LIMIT = 120;
+const RENDER_RATE_WINDOW_MS = 60_000;
+
 export type RenderTypstRouteOptions = TypstCompileOptions & {
   maxBodyBytes?: number;
   allowedOrigin?: string;
+  renderRateLimitPerMinute?: number;
+  trustProxy?: boolean;
 };
 
 export function createRenderTypstRoute(options: RenderTypstRouteOptions = {}) {
   const maxBodyBytes = options.maxBodyBytes || DEFAULT_MAX_BODY_BYTES;
+  const rateLimiter = createRateLimiter({
+    limit: options.renderRateLimitPerMinute ?? DEFAULT_RENDER_RATE_LIMIT,
+    windowMs: RENDER_RATE_WINDOW_MS,
+  });
+  const trustProxy = options.trustProxy ?? false;
 
   return async function renderTypstRoute(req: IncomingMessage, res: ServerResponse) {
+    setSecurityHeaders(res);
     setCorsHeaders(req, res, options.allowedOrigin ?? '*');
 
     if (req.method === 'OPTIONS') {
@@ -23,6 +37,12 @@ export function createRenderTypstRoute(options: RenderTypstRouteOptions = {}) {
 
     if (req.method !== 'POST') {
       sendJsonError(res, new RenderHttpError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.'));
+      return;
+    }
+
+    const clientIp = resolveClientIp(req, trustProxy) || 'unknown';
+    if (!rateLimiter.consume(clientIp)) {
+      sendJsonError(res, new RenderHttpError(429, 'QUOTA_EXCEEDED', 'Too many render requests.'));
       return;
     }
 

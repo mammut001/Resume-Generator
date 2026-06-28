@@ -72,6 +72,9 @@ function escapeTypst(text: string): string {
   return text
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t')
     .replace(/\*/g, '\\*')
     .replace(/_/g, '\\_')
     .replace(/%/g, '\\%')

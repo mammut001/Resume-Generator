@@ -8,6 +8,7 @@ import {
   inferTailoringUsedModel,
   shouldRecordValidationFailure,
 } from '../observability/events.js';
+import { withQuotaReservation } from '../lib/quotaReservation.js';
 import { recordDomainEvent } from '../observability/requestContext.js';
 import { parseResumeData } from '../tailoring/resumeTailoringSchema.js';
 import { buildResumeTailoringResult } from '../tailoring/resumeTailoringService.js';
@@ -59,15 +60,16 @@ export function createTailoringRoute(options: TailoringRouteOptions = {}) {
         recordDomainEvent(req, 'tailoring_requested', {
           jobDescriptionLengthBucket: bucketJobDescriptionLength(jobDescription.length),
         });
-        usageStore.consumeAttempt(req);
-        const result = await buildResumeTailoringResult(resume, jobDescription, options.modelGatewayConfig);
-        recordDomainEvent(req, 'tailoring_completed', {
-          warningCodes: getTailoringWarningCodes(result.warnings),
-          changeCount: result.changes.length,
-          gapCount: result.summary.gaps.length,
-          usedModel: inferTailoringUsedModel(result.warnings),
+        await withQuotaReservation(usageStore, req, async () => {
+          const result = await buildResumeTailoringResult(resume, jobDescription, options.modelGatewayConfig);
+          recordDomainEvent(req, 'tailoring_completed', {
+            warningCodes: getTailoringWarningCodes(result.warnings),
+            changeCount: result.changes.length,
+            gapCount: result.summary.gaps.length,
+            usedModel: inferTailoringUsedModel(result.warnings),
+          });
+          sendJson(res, 200, result);
         });
-        sendJson(res, 200, result);
         return;
       }
 

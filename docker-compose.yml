@@ -10,9 +10,8 @@ services:
       HOST: 0.0.0.0
       PORT: 8787
       RESUME_STATIC_DIR: /app/dist
-      # For a high-port same-origin pilot this can be *, but set an exact origin
-      # before putting the backend behind a public HTTPS frontend/domain.
-      TYPST_RENDER_ALLOWED_ORIGIN: ${TYPST_RENDER_ALLOWED_ORIGIN:-*}
+      # Leave unset for same-origin-only production; set an explicit origin for cross-origin frontends.
+      TYPST_RENDER_ALLOWED_ORIGIN: ${TYPST_RENDER_ALLOWED_ORIGIN:-}
       RESUME_INTAKE_ATTEMPT_LIMIT: ${RESUME_INTAKE_ATTEMPT_LIMIT:-30}
       RESUME_TAILORING_ATTEMPT_LIMIT: ${RESUME_TAILORING_ATTEMPT_LIMIT:-30}
       RESUME_INTAKE_PDF_OCR_ENABLED: ${RESUME_INTAKE_PDF_OCR_ENABLED:-false}

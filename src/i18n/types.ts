@@ -94,6 +94,8 @@ export type TranslationSchema = {
     deleteDialogDescription: string;
     deleteDialogCancel: string;
     deleteDialogConfirm: string;
+    untitled: string;
+    copySuffix: string;
   };
   onboarding: {
     eyebrow: string;
@@ -279,6 +281,19 @@ export type TranslationSchema = {
       likelyPacket: string;
       uncertain: string;
     };
+    signalMessages: {
+      packetPhrases: string;
+      sampleMetadata: string;
+      multipleEmails: string;
+      multiplePhones: string;
+      multipleNameCandidates: string;
+      possibleMultipleNames: string;
+      longDocument: string;
+      multiPageDocument: string;
+      repeatedSectionHeadings: string;
+      repeatedPacketHeadings: string;
+      denseCredentials: string;
+    };
     warningMessages: {
       missingName: string;
       missingEmail: string;
@@ -318,6 +333,9 @@ export type TranslationSchema = {
     renderingError: string;
     renderFailed: string;
     pdfRenderFailed: string;
+    renderUnavailableTitle: string;
+    renderUnavailableDescription: string;
+    renderUnavailableHint: string;
     startEditing: string;
     zoomIn: string;
     zoomOut: string;
@@ -387,6 +405,10 @@ export type TranslationSchema = {
     localeInterfaceOnlyTitle: string;
     localeInterfaceOnlyDescription: string;
     localeLoadSampleAction: string;
+    persistenceFailed: string;
+    persistenceFailedDescription: string;
+    workspaceSyncedFromOtherTab: string;
+    workspaceSyncedFromOtherTabDescription: string;
   };
   observability: {
     title: string;
@@ -519,7 +541,13 @@ export type TranslationSchema = {
     currentResume: string;
     usage: {
       remaining: string;
+      loadFailed: string;
+      exhausted: string;
     };
+    documentTitleWithRole: string;
+    documentTitleFallback: string;
+    acceptChangeFor: string;
+    rejectChangeFor: string;
     jobDescriptionLabel: string;
     jobDescriptionPlaceholder: string;
     helper: string;
@@ -658,6 +686,17 @@ export type TranslationSchema = {
     noPdfToExport: string;
     copyToClipboardFailed: string;
     pdfPageRangeRequired: string;
+    quotaExceeded: string;
+    intakeRequestFailed: string;
+    tailoringRequestFailed: string;
+    payloadTooLarge: string;
+    validationFailed: string;
+    tailoringNoJobDescription: string;
+  };
+  a11y: {
+    collapseSection: string;
+    expandSection: string;
+    previewPanel: string;
   };
   versionHistory: {
     manualSaveLabel: string;

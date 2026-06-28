@@ -34,6 +34,24 @@ if ((aiUsageSqlitePath && !aiUsageHmacSecret) || (!aiUsageSqlitePath && aiUsageH
   throw new Error('RESUME_AI_USAGE_SQLITE_PATH and RESUME_AI_USAGE_HMAC_SECRET must be configured together.');
 }
 
+const analyticsSqlitePath = process.env.RESUME_ANALYTICS_SQLITE_PATH?.trim();
+const analyticsHmacSecret = process.env.RESUME_ANALYTICS_HMAC_SECRET?.trim();
+const analyticsTrustProxy = parseBooleanEnv(
+  process.env.RESUME_ANALYTICS_TRUST_PROXY,
+  aiUsageTrustProxy,
+);
+
+if (process.env.NODE_ENV === 'production' && (!aiUsageSqlitePath || !aiUsageHmacSecret)) {
+  throw new Error('Production requires RESUME_AI_USAGE_SQLITE_PATH and RESUME_AI_USAGE_HMAC_SECRET.');
+}
+
+if (process.env.NODE_ENV === 'production' && analyticsSqlitePath && !analyticsHmacSecret) {
+  throw new Error('Production requires RESUME_ANALYTICS_HMAC_SECRET when RESUME_ANALYTICS_SQLITE_PATH is set.');
+}
+
+const allowedOrigin = process.env.TYPST_RENDER_ALLOWED_ORIGIN?.trim()
+  || (process.env.NODE_ENV === 'production' ? '' : '*');
+
 const intakeUsageStore = aiUsageSqlitePath && aiUsageHmacSecret
   ? createSqliteUsageStore({
     databasePath: aiUsageSqlitePath,
@@ -85,11 +103,14 @@ const app = createApp({
     model: process.env.OPENAI_MODEL,
     timeoutMs: parsePositiveIntegerEnv(process.env.OPENAI_TIMEOUT_MS, 60_000),
   },
-  allowedOrigin: process.env.TYPST_RENDER_ALLOWED_ORIGIN || '*',
+  allowedOrigin,
+  trustProxy: aiUsageTrustProxy,
+  renderRateLimitPerMinute: parsePositiveIntegerEnv(process.env.TYPST_RENDER_RATE_LIMIT_PER_MINUTE, 120),
   analyticsOptions: {
-    allowedOrigin: process.env.TYPST_RENDER_ALLOWED_ORIGIN || '*',
-    ...(process.env.RESUME_ANALYTICS_SQLITE_PATH ? { databasePath: process.env.RESUME_ANALYTICS_SQLITE_PATH } : {}),
-    hmacSecret: process.env.RESUME_ANALYTICS_HMAC_SECRET || process.env.RESUME_ANALYTICS_SUMMARY_TOKEN || 'analytics',
+    allowedOrigin,
+    ...(analyticsSqlitePath ? { databasePath: analyticsSqlitePath } : {}),
+    hmacSecret: analyticsHmacSecret || (process.env.NODE_ENV === 'production' ? undefined : 'analytics-dev-only'),
+    trustProxy: analyticsTrustProxy,
     isAuthorized: token => Boolean(process.env.RESUME_ANALYTICS_SUMMARY_TOKEN && token === process.env.RESUME_ANALYTICS_SUMMARY_TOKEN),
   },
   observabilityConfig: resolveObservabilityConfigFromEnv(process.env),

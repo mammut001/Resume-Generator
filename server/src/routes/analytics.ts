@@ -37,10 +37,15 @@ const ANALYTICS_PAYLOAD_VALUE_LIMIT = 80;
 const ANALYTICS_PAYLOAD_ARRAY_LIMIT = 20;
 const ANALYTICS_PAYLOAD_KEY_LIMIT = 32;
 
+export type AnalyticsRoute = ((req: IncomingMessage, res: ServerResponse, url: URL) => Promise<void>) & {
+  close?: () => void;
+};
+
 export type AnalyticsRouteOptions = {
   allowedOrigin?: string;
   databasePath?: string;
   hmacSecret?: string;
+  trustProxy?: boolean;
   isAuthorized?: (token: string | undefined) => boolean;
   rateLimitPerMinute?: number;
   now?: () => number;
@@ -64,17 +69,18 @@ export type AnalyticsSummary = {
 
 export type AnalyticsWindowSummary = { count: number; uniqueVisitors: number };
 
-export function createAnalyticsRoute(options: AnalyticsRouteOptions = {}) {
+export function createAnalyticsRoute(options: AnalyticsRouteOptions = {}): AnalyticsRoute {
   const now = options.now || Date.now;
   const store: AnalyticsStore = options.databasePath
     ? createSqliteAnalyticsStore(options.databasePath, now)
     : createMemoryAnalyticsStore(now);
   const rateLimit = options.rateLimitPerMinute ?? ANALYTICS_DEFAULT_RATE_PER_MIN;
   const counters = new Map<string, { count: number; windowStartedAt: number }>();
-  const hmacSecret = options.hmacSecret || 'analytics';
+  const trustProxy = options.trustProxy ?? false;
+  const hmacSecret = options.hmacSecret || (process.env.NODE_ENV === 'production' ? '' : 'analytics-dev-only');
 
   function consume(identifier: string | null): boolean {
-    if (!identifier) return false;
+    if (!identifier) return true;
     const currentTime = now();
     const bucket = counters.get(identifier);
     if (!bucket || currentTime - bucket.windowStartedAt > ANALYTICS_RATE_WINDOW_MS) {
@@ -85,7 +91,7 @@ export function createAnalyticsRoute(options: AnalyticsRouteOptions = {}) {
     return bucket.count <= rateLimit;
   }
 
-  return async function analyticsRoute(req: IncomingMessage, res: ServerResponse, url: URL) {
+  const analyticsRoute = async function analyticsRoute(req: IncomingMessage, res: ServerResponse, url: URL) {
     setCorsHeaders(req, res, options.allowedOrigin ?? '*');
 
     if (req.method === 'OPTIONS') {
@@ -99,7 +105,7 @@ export function createAnalyticsRoute(options: AnalyticsRouteOptions = {}) {
         throw new RenderHttpError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
       }
 
-      const ip = resolveClientIp(req, false);
+      const ip = resolveClientIp(req, trustProxy);
       if (!consume(ip)) {
         throw new RenderHttpError(429, 'QUOTA_EXCEEDED', 'Too many analytics events.');
       }
@@ -112,7 +118,7 @@ export function createAnalyticsRoute(options: AnalyticsRouteOptions = {}) {
         occurredAt: occurredAt || new Date(now()).toISOString(),
         payload: safePayload,
         route: url.pathname,
-        ipHash: ip ? hashIp(ip, hmacSecret) : null,
+        ipHash: ip && hmacSecret ? hashIp(ip, hmacSecret) : null,
       });
       sendJson(res, 202, { accepted: true, event });
       return;
@@ -132,6 +138,9 @@ export function createAnalyticsRoute(options: AnalyticsRouteOptions = {}) {
 
     sendJson(res, 404, { error: { code: 'NOT_FOUND', message: 'Analytics route not found.' } });
   };
+
+  analyticsRoute.close = store.close;
+  return analyticsRoute;
 }
 
 function sanitizeAnalyticsEventBody(body: unknown): { event: string; payload: Record<string, unknown>; occurredAt: string | null } {

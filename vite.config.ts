@@ -6,6 +6,19 @@ const typstRenderProxyTarget = process.env.VITE_TYPST_RENDER_PROXY_TARGET || 'ht
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('/react/')) return 'vendor-react';
+            if (id.includes('@radix-ui')) return 'vendor-radix';
+            if (id.includes('lucide-react')) return 'vendor-icons';
+          }
+        },
+      },
+    },
+  },
   server: {
     watch: {
       awaitWriteFinish: {

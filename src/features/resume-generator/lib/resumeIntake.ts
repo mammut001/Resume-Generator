@@ -1,4 +1,5 @@
 import { TranslationError } from './formatError';
+import { throwApiError } from './apiErrors';
 import { PdfIntakeResponse, ResumeIntakeResult, ResumeIntakeUsage } from '@/types/resume';
 
 const intakeEndpoint = (import.meta.env.VITE_RESUME_INTAKE_ENDPOINT || '/api/intake').replace(/\/$/, '');
@@ -10,7 +11,7 @@ export async function getIntakeUsage(): Promise<ResumeIntakeUsage> {
   });
 
   if (!response.ok) {
-    throw new Error(await readIntakeError(response));
+    await throwApiError(response, 'errors.intakeRequestFailed');
   }
 
   return response.json();
@@ -27,7 +28,7 @@ export async function generateResumeFromText(text: string): Promise<ResumeIntake
   });
 
   if (!response.ok) {
-    throw new Error(await readIntakeError(response));
+    await throwApiError(response, 'errors.intakeRequestFailed');
   }
 
   return response.json();
@@ -58,18 +59,8 @@ export async function generateResumeFromPdf(
   });
 
   if (!response.ok) {
-    throw new Error(await readIntakeError(response));
+    await throwApiError(response, 'errors.intakeRequestFailed');
   }
 
   return response.json();
-}
-
-async function readIntakeError(response: Response): Promise<string> {
-  const payload = await response.json().catch(() => null);
-  const error = payload?.error;
-
-  if (typeof error === 'string') return error;
-  if (error?.message) return error.message;
-
-  return `Intake request failed with status ${response.status}`;
 }

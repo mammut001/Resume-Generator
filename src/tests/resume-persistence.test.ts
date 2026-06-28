@@ -260,13 +260,16 @@ describe('resumeGeneratorStore document workspace', () => {
   });
 
   it('autosaves resume edits, design changes, and template changes without version spam', async () => {
+    vi.useFakeTimers();
     const { useResumeGeneratorStore } = await import('@/features/resume-generator/store/resumeGeneratorStore');
 
     useResumeGeneratorStore.getState().updatePersonal({ fullName: 'Persistent Candidate' });
     useResumeGeneratorStore.getState().updateDesign({ accentColor: '#0f766e' });
     useResumeGeneratorStore.getState().setTemplate('modern-compact');
+    await vi.advanceTimersByTimeAsync(400);
 
     const persisted = loadResumeWorkspace('en');
+    vi.useRealTimers();
     const activeDocument = persisted.documents.find(document => document.id === persisted.activeDocumentId);
 
     expect(activeDocument?.resume.personal.fullName).toBe('Persistent Candidate');
@@ -276,6 +279,7 @@ describe('resumeGeneratorStore document workspace', () => {
   });
 
   it('persists an applied imported draft through setResume', async () => {
+    vi.useFakeTimers();
     const { useResumeGeneratorStore } = await import('@/features/resume-generator/store/resumeGeneratorStore');
     const draftResume = {
       ...getDefaultResume('en'),
@@ -287,8 +291,10 @@ describe('resumeGeneratorStore document workspace', () => {
     };
 
     useResumeGeneratorStore.getState().setResume(draftResume);
+    await vi.advanceTimersByTimeAsync(400);
 
     const persisted = loadResumeWorkspace('en');
+    vi.useRealTimers();
     const activeDocument = persisted.documents.find(document => document.id === persisted.activeDocumentId);
 
     expect(activeDocument?.resume.personal.fullName).toBe('Imported Candidate');

@@ -5,11 +5,6 @@ import {
   ArrowLeft,
   Briefcase,
   Check,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Download,
-  FileDown,
   FileText,
   FileUp,
   FolderGit2,
@@ -49,32 +44,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { trackAnalyticsEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
-import type { TranslationKey } from '@/i18n/types';
 import { PdfDocumentAnalysis, PdfIntakeResponse, PdfSelectionRequiredResponse, ResumeData, ResumeIntakeResult, ResumeIntakeUsage } from '@/types/resume';
 import { accentPaletteOptions, densityOptions, pageSizeOptions, typographyOptions } from '../data/resumeDesign';
 import { resolveTemplateId, resumeTemplates } from '../data/resumeTemplates';
-import { buildResumeExportFileName, copyTypstSource, downloadTypstSource, exportPdf } from '../lib/exportResume';
-import { analyzeExportReadiness, type ExportReadinessIssue, type ExportReadinessLevel, type ExportReadinessSection, type ExportReadinessSeverity } from '../lib/exportReadiness';
 import { formatError } from '../lib/formatError';
 import { formatIntakeWarningMessage } from '../lib/formatIntakeWarning';
+import { formatPdfSignalMessage } from '../lib/formatPdfSignal';
+import { formatLocaleDateTime } from '@/lib/formatLocaleDate';
 import { applyIntakeDraftToResume, getPdfAnalysisTone, type PdfPageRangeValidationError, validatePdfPageRange } from '../lib/pdfIntakeFlow';
 import { getDefaultResume } from '../data/defaultResume';
-import { isStarterResume } from '../lib/resumeOnboarding';
-import { useResumeGeneratorStore } from '../store/resumeGeneratorStore';
 import { generateResumeFromPdf, generateResumeFromText, getIntakeUsage } from '../lib/resumeIntake';
 import { isStarterResume, shouldShowFirstRunOnboarding } from '../lib/resumeOnboarding';
-import { renderTypstToPdf } from '../lib/typstRenderer';
+import { useResumeGeneratorStore } from '../store/resumeGeneratorStore';
+import { ExportSection } from './ExportSection';
+import { AddButton, ControlGroup, EmptyState, Field, ItemShell, SegmentedControl } from './editorUi';
+import { ghostButtonClass, inputClass, primaryButtonClass, textareaClass } from './editorStyles';
 import { ResumeDocumentSwitcher } from './ResumeDocumentSwitcher';
 import { ResumeTailoringPanel } from './ResumeTailoringPanel';
-import { useResumeGeneratorStore } from '../store/resumeGeneratorStore';
 
-const inputClass = 'h-8 border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-blue-500';
-const textareaClass = 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-blue-500';
-const ghostButtonClass = 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+export { ExportSection } from './ExportSection';
 
 type StartIntakeMode = 'text' | 'pdf';
 type IntakeStatus = 'idle' | 'uploading' | 'extracting' | 'generating' | 'needsSelection' | 'error' | 'success';
-type ExportStatus = 'idle' | 'generating' | 'success' | 'error';
 type IntakeFailureReason = 'validation' | 'quota' | 'network' | 'server' | 'unknown';
 
 function classifyIntakeFailureReason(error: unknown): IntakeFailureReason {
@@ -102,8 +93,8 @@ export function ResumeEditorPanel() {
   }, []);
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col border-b border-slate-200 bg-slate-50 text-slate-900 shadow-2xl shadow-slate-400/20 lg:flex-none lg:border-b-0 lg:border-r lg:w-[520px] lg:min-w-[430px] lg:max-w-[560px]">
-      <div className="border-b border-slate-200 bg-white px-4 pb-3 pt-4">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col border-b border-slate-200 bg-white text-slate-900 lg:flex-none lg:border-b-0 lg:border-r lg:w-[520px] lg:min-w-[430px] lg:max-w-[560px]">
+      <div className="border-b border-slate-100 bg-white px-4 pb-3 pt-4">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600">{t('editor.eyebrow')}</p>
@@ -121,27 +112,27 @@ export function ResumeEditorPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b border-slate-200 bg-white px-4 py-3">
-          <TabsList className="grid h-auto min-h-9 w-full grid-cols-5 rounded-md border border-slate-200 bg-slate-100 p-1 text-slate-500">
-            <TabsTrigger value="start" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
+        <div className="border-b border-slate-100 bg-white px-4 py-3">
+          <TabsList className="app-tab-list grid h-auto min-h-9 w-full grid-cols-5">
+            <TabsTrigger value="start" className="app-tab-trigger min-w-0">
               {t('tabs.start')}
             </TabsTrigger>
-            <TabsTrigger value="content" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
+            <TabsTrigger value="content" className="app-tab-trigger min-w-0">
               {t('tabs.content')}
             </TabsTrigger>
-            <TabsTrigger value="design" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
+            <TabsTrigger value="design" className="app-tab-trigger min-w-0">
               {t('tabs.design')}
             </TabsTrigger>
-            <TabsTrigger value="tailor" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
+            <TabsTrigger value="tailor" className="app-tab-trigger min-w-0">
               {t('tabs.tailor')}
             </TabsTrigger>
-            <TabsTrigger value="export" className="min-w-0 rounded px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-none sm:text-sm">
+            <TabsTrigger value="export" className="app-tab-trigger min-w-0">
               {t('tabs.export')}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1">
+        <ScrollArea className="min-h-0 flex-1 bg-slate-50/70">
           <TabsContent value="start" className="m-0 space-y-3 p-4">
             <StartIntakeSection
               showOnboarding={showFirstRunOnboarding}
@@ -250,7 +241,7 @@ function StatusPill({ status }: { status: 'idle' | 'rendering' | 'success' | 'er
 
   const statusConfig = {
     idle: { label: t('status.idle'), className: 'border-slate-500/40 text-slate-600', dot: 'bg-slate-400' },
-    rendering: { label: t('status.rendering'), className: 'border-blue-300 text-blue-600', dot: 'bg-blue-600' },
+    rendering: { label: t('status.rendering'), className: 'border-primary/30 text-primary', dot: 'bg-primary' },
     success: { label: t('status.ready'), className: 'border-emerald-200 text-emerald-700', dot: 'bg-emerald-300' },
     error: { label: t('status.error'), className: 'border-rose-200 text-rose-700', dot: 'bg-rose-300' },
   }[status];
@@ -261,55 +252,6 @@ function StatusPill({ status }: { status: 'idle' | 'rendering' | 'success' | 'er
       {statusConfig.label}
     </Badge>
   );
-}
-
-function ControlGroup({
-  title,
-  icon: Icon,
-  count,
-  meta,
-  defaultOpen = true,
-  action,
-  children,
-}: {
-  title: string;
-  icon: React.ElementType;
-  count?: number;
-  meta?: string;
-  defaultOpen?: boolean;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const [isOpen, setIsOpen] = React.useState(defaultOpen);
-
-  return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-lg shadow-slate-300/20">
-      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
-        <button type="button" onClick={() => setIsOpen(open => !open)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-          {isOpen ? <ChevronDown className="h-4 w-4 text-slate-500" /> : <ChevronRight className="h-4 w-4 text-slate-500" />}
-          <Icon className="h-4 w-4 text-blue-600" />
-          <span className="truncate text-sm font-semibold text-slate-900">{title}</span>
-          {typeof count === 'number' && <Badge className="h-5 rounded bg-slate-200 px-1.5 text-[10px] text-slate-700 hover:bg-slate-200">{count}</Badge>}
-          {meta && <span className="hidden truncate text-xs text-slate-500 sm:block">{meta}</span>}
-        </button>
-        {action}
-      </div>
-      {isOpen && <div className="space-y-3 p-3">{children}</div>}
-    </section>
-  );
-}
-
-function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
-  return (
-    <div className={cn('space-y-1.5', className)}>
-      <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</Label>
-      {children}
-    </div>
-  );
-}
-
-function EmptyState({ label }: { label: string }) {
-  return <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-5 text-center text-xs text-slate-500">{label}</div>;
 }
 
 export function StartIntakeSection({
@@ -351,7 +293,7 @@ export function StartIntakeSection({
     } catch (err) {
       setError(formatError(err, t));
     }
-  }, []);
+  }, [t]);
 
   React.useEffect(() => {
     void refreshUsage();
@@ -404,6 +346,19 @@ export function StartIntakeSection({
     });
   }, [hydratePageSelectionInputs]);
 
+  const schedulePdfProgress = React.useCallback(() => {
+    clearPdfStatusTimers();
+    setIntakeStatus('uploading');
+    pdfStatusTimeoutsRef.current = [
+      setTimeout(() => {
+        setIntakeStatus(current => (current === 'uploading' ? 'extracting' : current));
+      }, 240),
+      setTimeout(() => {
+        setIntakeStatus(current => (current === 'uploading' || current === 'extracting' ? 'generating' : current));
+      }, 1000),
+    ];
+  }, [clearPdfStatusTimers]);
+
   const runPdfImport = React.useCallback(async (
     file: File,
     options?: { pageStart: number; pageEnd: number },
@@ -429,7 +384,7 @@ export function StartIntakeSection({
       trackAnalyticsEvent('intake_failed', { source: 'pdf', reason: classifyIntakeFailureReason(err) });
       await refreshUsage();
     }
-  }, [applyPdfResponse, clearPdfStatusTimers, refreshUsage]);
+  }, [applyPdfResponse, clearPdfStatusTimers, refreshUsage, schedulePdfProgress, t]);
 
   const setMode = (mode: StartIntakeMode) => {
     trackAnalyticsEvent('intake_started', { source: mode });
@@ -438,19 +393,6 @@ export function StartIntakeSection({
       setError(null);
       setIntakeStatus('idle');
     }
-  };
-
-  const schedulePdfProgress = () => {
-    clearPdfStatusTimers();
-    setIntakeStatus('uploading');
-    pdfStatusTimeoutsRef.current = [
-      setTimeout(() => {
-        setIntakeStatus(current => (current === 'uploading' ? 'extracting' : current));
-      }, 240),
-      setTimeout(() => {
-        setIntakeStatus(current => (current === 'uploading' || current === 'extracting' ? 'generating' : current));
-      }, 1000),
-    ];
   };
 
   const handleGenerate = async () => {
@@ -630,7 +572,7 @@ export function StartIntakeSection({
           />
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-slate-500">{t('intake.paragraph.attemptsHelper')}</p>
-            <Button className="h-9 bg-blue-600 text-white hover:bg-blue-500" onClick={handleGenerate} disabled={isBusy || Boolean(draft) || text.trim().length < 20 || usage?.remainingAttempts === 0}>
+            <Button className={cn('h-9', primaryButtonClass)} onClick={handleGenerate} disabled={isBusy || Boolean(draft) || text.trim().length < 20 || usage?.remainingAttempts === 0}>
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
               {t('actions.generateDraft')}
             </Button>
@@ -640,7 +582,14 @@ export function StartIntakeSection({
         </ControlGroup>
       ) : (
         <ControlGroup title={t('sections.pdfIntake')} icon={FileUp} meta={t('intake.pdf.uploadMeta')} defaultOpen>
-          <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handlePdfSelected} />
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            aria-label={t('intake.pdf.uploadTitle')}
+            onChange={handlePdfSelected}
+          />
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-medium text-slate-900">{t('intake.pdf.uploadTitle')}</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">{t('intake.pdf.uploadDescription')}</p>
@@ -675,7 +624,7 @@ export function StartIntakeSection({
                 <div className="space-y-1.5">
                   {pageSelection.analysis.signals.map(signal => (
                     <div key={signal.code} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
-                      {signal.message}
+                      {formatPdfSignalMessage(signal, t)}
                     </div>
                   ))}
                 </div>
@@ -708,7 +657,7 @@ export function StartIntakeSection({
 
               <p className="text-xs text-amber-700">{t('intake.pdf.pageRangeHelper')}</p>
 
-              <Button className="h-9 w-full bg-blue-600 text-white hover:bg-blue-500" onClick={handleGenerateFromSelectedPages} disabled={isBusy || !pdfFile}>
+              <Button className={cn('h-9 w-full', primaryButtonClass)} onClick={handleGenerateFromSelectedPages} disabled={isBusy || !pdfFile}>
                 {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
                 {t('actions.generateDraftFromPages')}
               </Button>
@@ -716,7 +665,7 @@ export function StartIntakeSection({
           )}
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-slate-500">{t('intake.pdf.helper')}</p>
-            <Button className="h-9 bg-blue-600 text-white hover:bg-blue-500" onClick={handleChoosePdf} disabled={isBusy || Boolean(draft) || usage?.remainingAttempts === 0}>
+            <Button className={cn('h-9', primaryButtonClass)} onClick={handleChoosePdf} disabled={isBusy || Boolean(draft) || usage?.remainingAttempts === 0}>
               {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
               {selectedPdfName ? t('actions.chooseAnotherPdf') : t('actions.choosePdf')}
             </Button>
@@ -779,7 +728,7 @@ export function StartIntakeSection({
                 <div className="space-y-1.5">
                   {pdfAnalysis.signals.map(signal => (
                     <div key={signal.code} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
-                      {signal.message}
+                      {formatPdfSignalMessage(signal, t)}
                     </div>
                   ))}
                 </div>
@@ -809,7 +758,7 @@ export function StartIntakeSection({
               <ArrowLeft className="h-4 w-4" />
               {draft.source.kind === 'pdf' ? t('actions.chooseAnotherPdf') : t('actions.editInput')}
             </Button>
-            <Button className="h-9 flex-1 bg-blue-600 text-white hover:bg-blue-500" onClick={handleApplyDraft}>
+            <Button className={cn('h-9 flex-1', primaryButtonClass)} onClick={handleApplyDraft}>
               <Check className="h-4 w-4" />
               {t('actions.applyDraft')}
             </Button>
@@ -878,14 +827,14 @@ function FirstRunWelcomePanel({
       <ol className="grid gap-2 sm:grid-cols-3">
         {valueProps.map((prop, index) => (
           <li key={prop} className="rounded border border-slate-200 bg-white px-3 py-2.5">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-semibold text-white">{index + 1}</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">{index + 1}</span>
             <span className="mt-2 block text-xs font-medium leading-5 text-slate-700">{t(`onboarding.valueProps.${prop}`)}</span>
           </li>
         ))}
       </ol>
 
       <div className="grid gap-2 sm:grid-cols-3">
-        <Button type="button" className="h-auto min-w-0 justify-start whitespace-normal bg-blue-600 p-3 text-left text-white hover:bg-blue-500" onClick={handleStartWithSample}>
+        <Button type="button" className={cn('h-auto min-w-0 justify-start whitespace-normal p-3 text-left', primaryButtonClass)} onClick={handleStartWithSample}>
           <Sparkles className="h-4 w-4 shrink-0" />
           <span className="min-w-0 leading-5">{t('onboarding.actions.startWithSample')}</span>
         </Button>
@@ -940,9 +889,10 @@ function StartModeCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={Boolean(active)}
       className={cn(
         'rounded-md border p-3 text-left transition',
-        active ? 'border-blue-300 bg-blue-100 text-blue-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100',
+        active ? 'border-primary/30 bg-primary/5 text-primary' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
         disabled && 'cursor-not-allowed opacity-50 hover:bg-slate-50',
       )}
     >
@@ -1292,7 +1242,7 @@ function BulletList({ bullets, onChange, placeholder }: { bullets: string[]; onC
               }}
               placeholder={placeholder}
             />
-            <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => onChange(bullets.filter((_, index) => index !== bulletIndex))}>
+            <Button size="icon" variant="ghost" title={t('actions.delete')} aria-label={t('actions.delete')} className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => onChange(bullets.filter((_, index) => index !== bulletIndex))}>
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -1306,35 +1256,7 @@ function BulletList({ bullets, onChange, placeholder }: { bullets: string[]; onC
   );
 }
 
-function ItemShell({ title, subtitle, onRemove, children }: { title: string; subtitle: string; onRemove: () => void; children: React.ReactNode }) {
-  const { t } = useI18n();
-
-  return (
-    <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-slate-900">{title}</p>
-          <p className="truncate text-[11px] text-slate-500">{subtitle}</p>
-        </div>
-        <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={onRemove}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="space-y-3 p-3">{children}</div>
-    </div>
-  );
-}
-
-function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <Button size="sm" variant="outline" className={cn('h-7 px-2 text-xs', ghostButtonClass)} onClick={onClick}>
-      <Plus className="h-3.5 w-3.5" />
-      {label}
-    </Button>
-  );
-}
-
-function DesignSection() {
+export function DesignSection() {
   const { resume, setTemplate, updateDesign } = useResumeGeneratorStore();
   const { t } = useI18n();
   const { design } = resume;
@@ -1353,15 +1275,30 @@ function DesignSection() {
       </ControlGroup>
 
       <ControlGroup title={t('sections.typography')} icon={FileText} meta={t('meta.voiceAndTexture')} defaultOpen>
-        <SegmentedControl options={typographyOptions.map(option => ({ id: option.id, label: t(option.labelKey), description: t(option.descriptionKey) }))} value={design.typography} onChange={typography => updateDesign({ typography })} />
+        <SegmentedControl
+          label={t('sections.typography')}
+          options={typographyOptions.map(option => ({ id: option.id, label: t(option.labelKey), description: t(option.descriptionKey) }))}
+          value={design.typography}
+          onChange={typography => updateDesign({ typography })}
+        />
       </ControlGroup>
 
       <ControlGroup title={t('sections.layout')} icon={SlidersHorizontal} meta={t('meta.densityAndPage')} defaultOpen>
         <Field label={t('fields.density')}>
-          <SegmentedControl options={densityOptions.map(option => ({ id: option.id, label: t(option.labelKey), description: t(option.descriptionKey) }))} value={design.density} onChange={density => updateDesign({ density })} />
+          <SegmentedControl
+            label={t('fields.density')}
+            options={densityOptions.map(option => ({ id: option.id, label: t(option.labelKey), description: t(option.descriptionKey) }))}
+            value={design.density}
+            onChange={density => updateDesign({ density })}
+          />
         </Field>
         <Field label={t('fields.page')}>
-          <SegmentedControl options={pageSizeOptions.map(option => ({ id: option.id, label: t(option.labelKey), description: t(option.descriptionKey) }))} value={design.pageSize} onChange={pageSize => updateDesign({ pageSize })} />
+          <SegmentedControl
+            label={t('fields.page')}
+            options={pageSizeOptions.map(option => ({ id: option.id, label: t(option.labelKey), description: t(option.descriptionKey) }))}
+            value={design.pageSize}
+            onChange={pageSize => updateDesign({ pageSize })}
+          />
         </Field>
       </ControlGroup>
 
@@ -1374,6 +1311,8 @@ function DesignSection() {
                 key={preset.value}
                 type="button"
                 title={t(preset.nameKey)}
+                aria-label={t(preset.nameKey)}
+                aria-pressed={isActive}
                 onClick={() => updateDesign({ accentColor: preset.value })}
                 className={cn('flex h-9 items-center justify-center rounded-md border bg-slate-50 transition', isActive ? 'border-slate-400' : 'border-slate-200 hover:border-slate-300')}
               >
@@ -1402,9 +1341,10 @@ function TemplateSelectionCard({
     <button
       type="button"
       onClick={onSelect}
+      aria-pressed={isActive}
       className={cn(
         'rounded-xl border p-3 text-left transition',
-        isActive ? 'border-blue-300 bg-blue-100 text-blue-700 shadow-lg shadow-blue-200/50' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-slate-100',
+        isActive ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
       )}
     >
       <div className="grid gap-3 md:grid-cols-[170px_1fr] md:items-start">
@@ -1422,7 +1362,7 @@ function TemplateSelectionCard({
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-50">{t(template.nameKey)}</p>
+              <p className="text-sm font-semibold text-slate-900">{t(template.nameKey)}</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">{t(template.descriptionKey)}</p>
             </div>
             {isActive ? (
@@ -1451,361 +1391,9 @@ function TemplateSelectionCard({
   );
 }
 
-function SegmentedControl<TValue extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: Array<{ id: TValue; label: string; description?: string }>;
-  value: TValue;
-  onChange: (value: TValue) => void;
-}) {
-  return (
-    <div className="grid gap-1 rounded-md border border-slate-200 bg-slate-50 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
-      {options.map(option => {
-        const isActive = option.id === value;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            title={option.description}
-            onClick={() => onChange(option.id)}
-            className={cn(
-              'min-h-10 rounded px-2 py-1.5 text-center transition',
-              isActive ? 'bg-blue-600 text-white shadow-sm shadow-slate-400/20' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
-            )}
-          >
-            <span className="block text-xs font-semibold">{option.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-export function ExportSection() {
-  const { resume, typstSource, documents, activeDocumentId, renderStatus, renderError, svgHtml, lastIntakeWarnings } = useResumeGeneratorStore();
-  const { t } = useI18n();
-  const [exportStatus, setExportStatus] = React.useState<ExportStatus>('idle');
-  const [lastExportFileName, setLastExportFileName] = React.useState<string | null>(null);
-  const [exportError, setExportError] = React.useState<string | null>(null);
-  const activeDocument = documents.find(document => document.id === activeDocumentId) || documents[0];
-  const documentTitle = activeDocument?.title || resume.title;
-  const resolvedTemplateId = resolveTemplateId(resume.templateId);
-  const activeTemplate = resumeTemplates.find(template => template.id === resolvedTemplateId) || resumeTemplates[0];
-  const validTemplateIds = React.useMemo(() => {
-    const templateIds = resumeTemplates.map(template => template.id);
-    return templateIds.includes(resolvedTemplateId) ? [...templateIds, resume.templateId] : templateIds;
-  }, [resolvedTemplateId, resume.templateId]);
-  const readiness = analyzeExportReadiness({
-    resume,
-    typstSource,
-    renderStatus,
-    renderError,
-    svgHtml,
-    templateIds: validTemplateIds,
-    intakeWarnings: lastIntakeWarnings,
-  });
-  const pdfFileName = buildResumeExportFileName(resume, 'pdf', documentTitle);
-  const typFileName = buildResumeExportFileName(resume, 'typ', documentTitle);
-  const isDownloadingPdf = exportStatus === 'generating';
-  const isPdfTechnicallyBlocked = readiness.issues.some(issue => issue.code === 'RENDER_ERROR' || issue.code === 'TYPST_SOURCE_EMPTY');
-
-  const handleCopyTypst = async () => {
-    try {
-      await copyTypstSource(typstSource);
-      toast.success(t('toast.copiedSource'));
-    } catch (error) {
-      toast.error(t('toast.copyFailed'), { description: formatError(error, t) });
-    }
-  };
-
-  const handleDownloadTypst = () => {
-    try {
-      downloadTypstSource(typstSource, resume, documentTitle);
-      toast.success(t('toast.typstDownloaded'));
-    } catch (error) {
-      toast.error(t('toast.downloadFailed'), { description: formatError(error, t) });
-    }
-  };
-
-  const handleDownloadPdf = async () => {
-    setExportStatus('generating');
-    setExportError(null);
-    const issueCodes = readiness.issues.map(issue => issue.code);
-    trackAnalyticsEvent('export_started', {
-      format: 'pdf',
-      issueCodes,
-    });
-    let stage: 'render' | 'download' = 'render';
-    try {
-      const result = await renderTypstToPdf(typstSource);
-      if (!result.ok) {
-        throw new Error(result.error || t('preview.pdfRenderFailed'));
-      }
-
-      stage = 'download';
-      const fileName = await exportPdf(resume, result.pdfBlob, documentTitle);
-      setLastExportFileName(fileName);
-      setExportStatus('success');
-      trackAnalyticsEvent('export_completed', {
-        format: 'pdf',
-        issueCodes,
-      });
-      toast.success(t('toast.pdfDownloaded'));
-    } catch (error) {
-      setExportStatus('error');
-      setExportError(formatError(error, t));
-      trackAnalyticsEvent('export_failed', {
-        format: 'pdf',
-        issueCodes,
-        reason: stage === 'render' ? 'render_failed' : 'download_failed',
-      });
-      toast.error(t('toast.pdfDownloadFailed'), { description: formatError(error, t) });
-    }
-  };
-
-  return (
-    <ControlGroup title={t('sections.exportActions')} icon={FileDown} meta={t('meta.sourceChars', { count: typstSource.length.toLocaleString() })} defaultOpen>
-      <div className="space-y-3">
-        <ExportReadinessPanel readiness={readiness} />
-
-        <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">{t('exportPanel.summaryTitle')}</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">{t('exportPanel.summaryDescription')}</p>
-            </div>
-            <Badge className={getReadinessLevelClassName(readiness.level)}>
-              {readiness.level === 'ready' ? t('exportReadiness.readyTitle') : readiness.level === 'blocked' ? t('exportReadiness.blockedTitle') : t('exportReadiness.needsReviewTitle')}
-            </Badge>
-          </div>
-          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2">
-            <p className="text-sm font-semibold text-blue-700">{t('exportPanel.activeDocumentTitle', { title: documentTitle })}</p>
-            <p className="mt-1 text-xs leading-5 text-blue-700">{t('exportPanel.activeDocumentDescription')}</p>
-          </div>
-          <dl className="grid gap-2 text-xs sm:grid-cols-2">
-            <ExportSummaryItem label={t('exportPanel.documentTitle')} value={documentTitle} />
-            <ExportSummaryItem label={t('exportPanel.candidateName')} value={resume.personal.fullName || t('exportPanel.missingValue')} />
-            <ExportSummaryItem label={t('exportPanel.template')} value={t(activeTemplate.nameKey)} />
-            <ExportSummaryItem label={t('exportPanel.pageSize')} value={t(`design.pageSize.${resume.design.pageSize}.label`)} />
-            <ExportSummaryItem label={t('exportPanel.lastUpdated')} value={activeDocument?.updatedAt ? formatExportDate(activeDocument.updatedAt) : t('exportPanel.missingValue')} />
-            <ExportSummaryItem label={t('exportPanel.fileName')} value={pdfFileName} />
-          </dl>
-        </div>
-
-        {exportStatus !== 'idle' ? (
-          <div className={`rounded-md border px-3 py-2 text-xs ${exportStatus === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : exportStatus === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
-            {exportStatus === 'generating' ? t('exportPanel.generatingPdf') : exportStatus === 'success' ? t('exportPanel.exportedFile', { fileName: lastExportFileName || pdfFileName }) : t('exportPanel.exportFailed', { message: exportError || t('preview.pdfRenderFailed') })}
-          </div>
-        ) : null}
-
-        <div className="grid gap-2">
-          <Button className="h-auto min-h-10 justify-start whitespace-normal bg-blue-600 text-left text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60" onClick={handleDownloadPdf} disabled={isDownloadingPdf || isPdfTechnicallyBlocked}>
-            {isDownloadingPdf ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <FileDown className="h-4 w-4 shrink-0" />}
-            <span className="min-w-0">{isDownloadingPdf ? t('exportPanel.generatingPdf') : t('actions.downloadPdf')}</span>
-          </Button>
-          {isPdfTechnicallyBlocked ? (
-            <p className="break-words text-[11px] leading-4 text-rose-700">{t('exportReadiness.technicalBlock')}</p>
-          ) : readiness.level !== 'ready' ? (
-            <p className="break-words text-[11px] leading-4 text-amber-700">{t('exportReadiness.exportAnyway')}</p>
-          ) : null}
-          <p className="break-words text-[11px] leading-4 text-slate-500">{t('exportPanel.pdfPrimaryHelper', { fileName: pdfFileName })}</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button variant="outline" className={cn('h-auto min-h-9 justify-start whitespace-normal text-left', ghostButtonClass)} onClick={handleDownloadTypst}>
-              <Download className="h-4 w-4 shrink-0" />
-              <span className="min-w-0">{t('actions.downloadTypst')}</span>
-            </Button>
-            <Button variant="outline" className={cn('h-auto min-h-9 justify-start whitespace-normal text-left', ghostButtonClass)} onClick={handleCopyTypst}>
-              <Copy className="h-4 w-4 shrink-0" />
-              <span className="min-w-0">{t('actions.copySource')}</span>
-            </Button>
-          </div>
-          <p className="break-words text-[11px] leading-4 text-slate-500">{t('exportPanel.typstHelper', { fileName: typFileName })}</p>
-        </div>
-      </div>
-    </ControlGroup>
-  );
-}
-
-function ExportReadinessPanel({ readiness }: { readiness: ReturnType<typeof analyzeExportReadiness> }) {
-  const { t } = useI18n();
-  const [showAll, setShowAll] = React.useState(false);
-  const sortedIssues = React.useMemo(() => [...readiness.issues].sort((left, right) => severityRank(left.severity) - severityRank(right.severity)), [readiness.issues]);
-  const visibleIssues = showAll ? sortedIssues : sortedIssues.slice(0, 6);
-  const visiblePasses = showAll ? readiness.passes : readiness.passes.slice(0, 4);
-  const hiddenCount = sortedIssues.length + readiness.passes.length - visibleIssues.length - visiblePasses.length;
-
-  return (
-    <div className={cn('space-y-3 rounded-md border p-3', getReadinessPanelClassName(readiness.level))}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{t('exportReadiness.title')}</p>
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
-            {getReadinessLevelIcon(readiness.level)}
-            <p className="text-sm font-semibold text-slate-900">{t(getReadinessLevelTitleKey(readiness.level))}</p>
-            <Badge variant="outline" className="rounded border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-700">
-              {t('exportReadiness.scoreLabel', { score: readiness.score })}
-            </Badge>
-          </div>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            {t('exportReadiness.summary', {
-              blockers: readiness.summary.blockerCount,
-              warnings: readiness.summary.warningCount,
-              suggestions: readiness.summary.suggestionCount,
-            })}
-          </p>
-        </div>
-      </div>
-
-      {visibleIssues.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-700">{t('exportReadiness.needsAttention')}</p>
-          <ul className="space-y-1.5">
-            {visibleIssues.map(issue => (
-              <ReadinessIssueRow key={issue.id} issue={issue} />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {visiblePasses.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-700">{t('exportReadiness.passedChecks')}</p>
-          <ul className="grid gap-1.5 sm:grid-cols-2">
-            {visiblePasses.map(issue => (
-              <ReadinessIssueRow key={issue.id} issue={issue} compact />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {hiddenCount > 0 || showAll ? (
-        <Button type="button" variant="ghost" className="h-7 px-2 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900" onClick={() => setShowAll(current => !current)}>
-          {showAll ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          {showAll ? t('exportReadiness.showLess') : t('exportReadiness.showAll')}
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-function ReadinessIssueRow({ issue, compact = false }: { issue: ExportReadinessIssue; compact?: boolean }) {
-  const { t } = useI18n();
-  return (
-    <li className={cn('rounded border px-2 py-1.5', getSeverityClassName(issue.severity), compact ? 'flex items-center gap-2' : 'space-y-1')}>
-      <div className="flex min-w-0 items-start gap-2">
-        {getSeverityIcon(issue.severity)}
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <span className="min-w-0 text-xs font-semibold leading-5 text-slate-900">{t(issue.titleKey)}</span>
-            {issue.section ? (
-              <Badge variant="outline" className="rounded border-slate-200 bg-slate-50 px-1.5 py-0 text-[10px] text-slate-600">
-                {t(getSectionLabelKey(issue.section))}
-              </Badge>
-            ) : null}
-            <span className="text-[10px] uppercase tracking-wide text-slate-500">{t(getSeverityLabelKey(issue.severity))}</span>
-          </div>
-          {!compact && issue.descriptionKey ? (
-            <p className="text-xs leading-5 text-slate-500">{t(issue.descriptionKey)}</p>
-          ) : null}
-        </div>
-      </div>
-    </li>
-  );
-}
-
-function ExportSummaryItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
-      <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-0.5 break-words text-slate-700">{value}</dd>
-    </div>
-  );
-}
-
-function formatExportDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-function severityRank(severity: ExportReadinessSeverity): number {
-  if (severity === 'blocker') return 0;
-  if (severity === 'warning') return 1;
-  if (severity === 'suggestion') return 2;
-  return 3;
-}
-
-function getReadinessLevelTitleKey(level: ExportReadinessLevel): TranslationKey {
-  if (level === 'blocked') return 'exportReadiness.blockedTitle';
-  if (level === 'needs_review') return 'exportReadiness.needsReviewTitle';
-  return 'exportReadiness.readyTitle';
-}
-
-function getReadinessLevelClassName(level: ExportReadinessLevel): string {
-  if (level === 'blocked') return 'border-rose-200 bg-rose-50 text-rose-700';
-  if (level === 'needs_review') return 'border-amber-200 bg-amber-50 text-amber-700';
-  return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-}
-
-function getReadinessPanelClassName(level: ExportReadinessLevel): string {
-  if (level === 'blocked') return 'border-rose-200 bg-rose-50';
-  if (level === 'needs_review') return 'border-amber-200 bg-amber-50';
-  return 'border-emerald-200 bg-emerald-50';
-}
-
-function getReadinessLevelIcon(level: ExportReadinessLevel) {
-  if (level === 'blocked') return <AlertTriangle className="h-4 w-4 text-rose-600" />;
-  if (level === 'needs_review') return <AlertTriangle className="h-4 w-4 text-amber-700" />;
-  return <ShieldCheck className="h-4 w-4 text-emerald-600" />;
-}
-
-function getSeverityClassName(severity: ExportReadinessSeverity): string {
-  if (severity === 'blocker') return 'border-rose-200 bg-rose-50';
-  if (severity === 'warning') return 'border-amber-200 bg-amber-50';
-  if (severity === 'suggestion') return 'border-blue-200 bg-blue-50';
-  return 'border-emerald-200 bg-emerald-50';
-}
-
-function getSeverityIcon(severity: ExportReadinessSeverity) {
-  if (severity === 'pass') return <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-600" />;
-  if (severity === 'blocker') return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-rose-600" />;
-  if (severity === 'warning') return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-amber-700" />;
-  return <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-blue-600" />;
-}
-
-function getSeverityLabelKey(severity: ExportReadinessSeverity): TranslationKey {
-  if (severity === 'blocker') return 'exportReadiness.severity.blocker';
-  if (severity === 'warning') return 'exportReadiness.severity.warning';
-  if (severity === 'suggestion') return 'exportReadiness.severity.suggestion';
-  return 'exportReadiness.severity.pass';
-}
-
-function getSectionLabelKey(section: ExportReadinessSection): TranslationKey {
-  switch (section) {
-    case 'personal':
-      return 'exportReadiness.sections.personal';
-    case 'summary':
-      return 'exportReadiness.sections.summary';
-    case 'experience':
-      return 'exportReadiness.sections.experience';
-    case 'education':
-      return 'exportReadiness.sections.education';
-    case 'skills':
-      return 'exportReadiness.sections.skills';
-    case 'projects':
-      return 'exportReadiness.sections.projects';
-    case 'design':
-      return 'exportReadiness.sections.design';
-    case 'export':
-      return 'exportReadiness.sections.export';
-  }
-}
-
 function VersionHistorySection() {
   const { versions, restoreVersion, deleteVersion, saveVersion } = useResumeGeneratorStore();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   return (
     <ControlGroup
@@ -1828,12 +1416,12 @@ function VersionHistorySection() {
             <div key={version.id} className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-2">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-700">{version.label}</p>
-                <p className="text-[11px] text-slate-500">{new Date(version.createdAt).toLocaleString()}</p>
+                <p className="text-[11px] text-slate-500">{formatLocaleDateTime(version.createdAt, locale)}</p>
               </div>
-              <Button size="icon" variant="ghost" title={t('actions.restore')} className="h-8 w-8 text-slate-500 hover:bg-blue-100 hover:text-blue-600" onClick={() => restoreVersion(version)}>
+              <Button size="icon" variant="ghost" title={t('actions.restore')} aria-label={t('actions.restore')} className="h-8 w-8 text-slate-500 hover:bg-blue-100 hover:text-blue-600" onClick={() => restoreVersion(version)}>
                 <RotateCcw className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="ghost" title={t('actions.delete')} className="h-8 w-8 text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => deleteVersion(version.id)}>
+              <Button size="icon" variant="ghost" title={t('actions.delete')} aria-label={t('actions.delete')} className="h-8 w-8 text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => deleteVersion(version.id)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>

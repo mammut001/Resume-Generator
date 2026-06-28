@@ -3,7 +3,12 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RenderHttpError, sanitizeErrorDetails } from '../lib/errors.js';
-import { DEFAULT_RENDER_TIMEOUT_MS, RenderTypstRequest } from '../lib/validation.js';
+import { createSemaphore } from '../lib/semaphore.js';
+import { DEFAULT_RENDER_TIMEOUT_MS, parsePositiveIntegerEnv, RenderTypstRequest } from '../lib/validation.js';
+
+const typstCompileSemaphore = createSemaphore(
+  parsePositiveIntegerEnv(process.env.TYPST_MAX_CONCURRENT, 4),
+);
 
 export type TypstCompileOptions = {
   typstBin?: string;
@@ -19,21 +24,27 @@ export async function compileTypst(
   request: RenderTypstRequest,
   options: TypstCompileOptions = {},
 ): Promise<Buffer> {
-  const typstBin = options.typstBin || 'typst';
-  const timeoutMs = options.timeoutMs || DEFAULT_RENDER_TIMEOUT_MS;
-  const maxStderrBytes = options.maxStderrBytes || 12_000;
-  const tempDir = await mkdtemp(join(tmpdir(), 'resume-generator-'));
+  const release = await typstCompileSemaphore.acquire();
 
   try {
-    const inputPath = join(tempDir, 'resume.typ');
-    const outputPath = join(tempDir, `resume.${request.format}`);
+    const typstBin = options.typstBin || 'typst';
+    const timeoutMs = options.timeoutMs || DEFAULT_RENDER_TIMEOUT_MS;
+    const maxStderrBytes = options.maxStderrBytes || 12_000;
+    const tempDir = await mkdtemp(join(tmpdir(), 'resume-generator-'));
 
-    await writeFile(inputPath, request.source, 'utf8');
-    await runTypstCompile({ typstBin, inputPath, outputPath, tempDir, timeoutMs, maxStderrBytes });
+    try {
+      const inputPath = join(tempDir, 'resume.typ');
+      const outputPath = join(tempDir, `resume.${request.format}`);
 
-    return await readFile(outputPath);
+      await writeFile(inputPath, request.source, 'utf8');
+      await runTypstCompile({ typstBin, inputPath, outputPath, tempDir, timeoutMs, maxStderrBytes });
+
+      return await readFile(outputPath);
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   } finally {
-    await rm(tempDir, { recursive: true, force: true });
+    release();
   }
 }
 

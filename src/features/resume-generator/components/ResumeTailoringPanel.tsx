@@ -32,11 +32,23 @@ export function ResumeTailoringPanel() {
   const [status, setStatus] = React.useState<TailoringStatus>('idle');
   const [error, setError] = React.useState<string | null>(null);
   const [usage, setUsage] = React.useState<ResumeTailoringUsage | null>(null);
+  const [usageLoadFailed, setUsageLoadFailed] = React.useState(false);
   const [result, setResult] = React.useState<ResumeTailoringResult | null>(null);
   const [acceptedChangeIds, setAcceptedChangeIds] = React.useState<Set<string>>(new Set());
   const activeDocument = documents.find(document => document.id === activeDocumentId) || documents[0];
-  const canGenerate = jobDescription.trim().length >= 40 && status !== 'generating';
+  const quotaExhausted = usage?.remainingAttempts === 0;
+  const canGenerate = jobDescription.trim().length >= 40 && status !== 'generating' && !quotaExhausted;
   const selectedResume = result ? applyTailoringChanges(resume, result, acceptedChangeIds) : null;
+
+  const refreshUsage = React.useCallback(async () => {
+    try {
+      const nextUsage = await getTailoringUsage();
+      setUsage(nextUsage);
+      setUsageLoadFailed(false);
+    } catch {
+      setUsageLoadFailed(true);
+    }
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -45,11 +57,15 @@ export function ResumeTailoringPanel() {
       .then(nextUsage => {
         if (!cancelled) {
           setUsage(nextUsage);
+          setUsageLoadFailed(false);
           setStatus('idle');
         }
       })
       .catch(() => {
-        if (!cancelled) setStatus('idle');
+        if (!cancelled) {
+          setUsageLoadFailed(true);
+          setStatus('idle');
+        }
       });
     return () => {
       cancelled = true;
@@ -82,6 +98,7 @@ export function ResumeTailoringPanel() {
     } catch (requestError) {
       setError(formatError(requestError, t));
       setStatus('error');
+      await refreshUsage();
     }
   };
 
@@ -91,8 +108,8 @@ export function ResumeTailoringPanel() {
     const sourceTitle = activeDocument?.title || resume.title;
     const targetRole = result.summary.targetRole;
     const documentTitle = targetRole
-      ? `${sourceTitle} - Tailored for ${targetRole}`
-      : `${sourceTitle} - Tailored`;
+      ? t('tailoring.documentTitleWithRole', { source: sourceTitle, targetRole })
+      : t('tailoring.documentTitleFallback', { source: sourceTitle });
 
     createDocumentFromResume(documentTitle, selectedResume);
     trackAnalyticsEvent('tailoring_applied', {
@@ -142,6 +159,9 @@ export function ResumeTailoringPanel() {
         <p className="mt-3 rounded border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
           {t('tailoring.currentResume', { title: activeDocument?.title || resume.title })}
         </p>
+        {usageLoadFailed ? (
+          <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">{t('tailoring.usage.loadFailed')}</p>
+        ) : null}
       </section>
 
       <section className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
@@ -156,10 +176,13 @@ export function ResumeTailoringPanel() {
           placeholder={t('tailoring.jobDescriptionPlaceholder')}
         />
         <p className="text-[11px] leading-4 text-slate-500">{t('tailoring.helper')}</p>
-        {error ? (
-          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
+        {quotaExhausted ? (
+          <div role="alert" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('tailoring.usage.exhausted')}</div>
         ) : null}
-        <Button type="button" className="w-full bg-blue-600 text-white hover:bg-blue-500" disabled={!canGenerate} onClick={handleGenerate}>
+        {error ? (
+          <div role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
+        ) : null}
+        <Button type="button" className="app-primary-btn w-full" disabled={!canGenerate} onClick={handleGenerate}>
           {status === 'generating' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
           {status === 'generating' ? t('tailoring.generating') : t('tailoring.generate')}
         </Button>
@@ -257,6 +280,7 @@ function TailoringReview({
                           variant="outline"
                           className={`h-7 border-emerald-200 px-2 text-[11px] ${accepted ? 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300' : 'bg-transparent text-emerald-700 hover:bg-emerald-50'}`}
                           aria-pressed={accepted}
+                          aria-label={t('tailoring.acceptChangeFor', { description: change.description })}
                           onClick={() => onChangeDecision(change.id, true)}
                         >
                           <Check className="h-3.5 w-3.5" />
@@ -268,6 +292,7 @@ function TailoringReview({
                           variant="outline"
                           className={`h-7 border-slate-500/40 px-2 text-[11px] ${!accepted ? 'bg-slate-200 text-slate-950 hover:bg-white' : 'bg-transparent text-slate-600 hover:bg-slate-200'}`}
                           aria-pressed={!accepted}
+                          aria-label={t('tailoring.rejectChangeFor', { description: change.description })}
                           onClick={() => onChangeDecision(change.id, false)}
                         >
                           <X className="h-3.5 w-3.5" />

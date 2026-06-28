@@ -7,7 +7,16 @@ import { getDefaultResume } from '../data/defaultResume';
 import { loadResumeVersions, saveResumeVersion } from '../lib/resumeHistory';
 import { renderResumeToTypst } from '../data/resumeTemplates';
 import { resumeDesignDefaults } from '../data/resumeDesign';
-import { cloneResume, createResumeDocument, loadResumeWorkspace, saveResumeWorkspace } from '../lib/resumePersistence';
+import { createDebouncedPersist } from '../lib/debouncedPersist';
+import {
+  cloneResume,
+  createResumeDocument,
+  loadResumeWorkspace,
+  RESUME_WORKSPACE_STORAGE_KEY,
+  saveResumeWorkspace,
+  shouldNotifyPersistenceFailure,
+  migrateResumeWorkspace,
+} from '../lib/resumePersistence';
 import { isStarterResume } from '../lib/resumeOnboarding';
 
 type RenderStatus = 'idle' | 'rendering' | 'success' | 'error';
@@ -61,7 +70,37 @@ interface ResumeGeneratorState {
 }
 
 function generateId(): string {
-  return Math.random().toString(36).substring(2, 11);
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+type WorkspacePersistPayload = {
+  documents: ResumeDocument[];
+  activeDocumentId: string;
+  hasDismissedOnboarding: boolean;
+};
+
+const workspacePersist = createDebouncedPersist<WorkspacePersistPayload>(
+  payload => persistWorkspaceState(payload.documents, payload.activeDocumentId, payload.hasDismissedOnboarding),
+  { delayMs: 400 },
+);
+
+function scheduleWorkspacePersist(documents: ResumeDocument[], activeDocumentId: string, hasDismissedOnboarding: boolean): void {
+  workspacePersist.schedule({ documents, activeDocumentId, hasDismissedOnboarding });
+}
+
+function flushWorkspacePersist(): void {
+  workspacePersist.flushNow();
+}
+
+function getWorkspaceRevision(workspace: Pick<ResumeWorkspace, 'documents'>): number {
+  return workspace.documents.reduce((latest, document) => {
+    const updatedAt = Date.parse(document.updatedAt);
+    return Number.isFinite(updatedAt) && updatedAt > latest ? updatedAt : latest;
+  }, 0);
 }
 
 function normalizeResume(resume: ResumeData, fallbackDesign = resumeDesignDefaults): ResumeData {
@@ -89,11 +128,15 @@ function getActiveDocument(workspace: Pick<ResumeWorkspace, 'activeDocumentId' |
 }
 
 function getDocumentLabel(resume: ResumeData): string {
-  return resume.title.trim() || resume.personal.fullName.trim() || 'Untitled Resume';
+  const locale = getCurrentLocale();
+  const untitled = translate(locale, 'documents.untitled');
+  return resume.title.trim() || resume.personal.fullName.trim() || untitled;
 }
 
 function getCopyTitle(title: string, documents: ResumeDocument[]): string {
-  const baseTitle = `${title.trim() || 'Untitled Resume'} Copy`;
+  const locale = getCurrentLocale();
+  const untitled = translate(locale, 'documents.untitled');
+  const baseTitle = `${title.trim() || untitled} ${translate(locale, 'documents.copySuffix')}`;
   const existingTitles = new Set(documents.map(document => document.title));
   if (!existingTitles.has(baseTitle)) return baseTitle;
 
@@ -106,12 +149,19 @@ function getCopyTitle(title: string, documents: ResumeDocument[]): string {
 }
 
 function persistWorkspaceState(documents: ResumeDocument[], activeDocumentId: string, hasDismissedOnboarding: boolean): void {
-  saveResumeWorkspace({
+  const saved = saveResumeWorkspace({
     version: 1,
     activeDocumentId,
     documents,
     hasDismissedOnboarding,
   });
+
+  if (!saved && shouldNotifyPersistenceFailure()) {
+    const locale = getCurrentLocale();
+    toast.error(translate(locale, 'toast.persistenceFailed'), {
+      description: translate(locale, 'toast.persistenceFailedDescription'),
+    });
+  }
 }
 
 export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) => ({
@@ -339,6 +389,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
   clearLastIntakeWarnings: () => set({ lastIntakeWarnings: [] }),
 
   createDocument: () => {
+    flushWorkspacePersist();
     const now = new Date().toISOString();
     const document = createResumeDocument(getDefaultResume(getCurrentLocale()), { now });
     const updatedDocuments = [...get().documents, document];
@@ -358,6 +409,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
   },
 
   duplicateDocument: () => {
+    flushWorkspacePersist();
     const { documents, activeDocumentId, resume } = get();
     const activeDocument = documents.find(document => document.id === activeDocumentId) || documents[0];
     const title = getCopyTitle(activeDocument?.title || getDocumentLabel(resume), documents);
@@ -383,6 +435,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
   },
 
   createDocumentFromResume: (title, resume) => {
+    flushWorkspacePersist();
     const sourceResume = get().resume;
     const normalized = normalizeResume({
       ...resume,
@@ -412,11 +465,13 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
     const documents = get().documents.map(document => document.id === id
       ? { ...document, title: normalizedTitle, updatedAt: now }
       : document);
+    flushWorkspacePersist();
     persistWorkspaceState(documents, get().activeDocumentId, get().hasDismissedOnboarding);
     set({ documents });
   },
 
   deleteDocument: (id) => {
+    flushWorkspacePersist();
     const { documents, activeDocumentId } = get();
     if (documents.length <= 1) return;
 
@@ -439,6 +494,7 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
   },
 
   switchDocument: (id) => {
+    flushWorkspacePersist();
     const { documents } = get();
     const activeDocument = documents.find(document => document.id === id);
     if (!activeDocument) return;
@@ -463,12 +519,13 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
 
   dismissOnboarding: () => {
     const { documents, activeDocumentId } = get();
+    flushWorkspacePersist();
     persistWorkspaceState(documents, activeDocumentId, true);
     set({ hasDismissedOnboarding: true });
   },
 
   saveActiveDocument: (nextResume) => {
-    const { documents, activeDocumentId, resume } = get();
+    const { documents, activeDocumentId, resume, hasDismissedOnboarding } = get();
     const activeResume = normalizeResume(nextResume || resume, resume.design);
     const now = new Date().toISOString();
     const updatedDocuments = documents.map(document => document.id === activeDocumentId
@@ -479,8 +536,8 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
           lastOpenedAt: now,
         }
       : document);
-    persistWorkspaceState(updatedDocuments, activeDocumentId, get().hasDismissedOnboarding);
     set({ documents: updatedDocuments });
+    scheduleWorkspacePersist(updatedDocuments, activeDocumentId, hasDismissedOnboarding);
   },
 
   setVersions: (versions) => set({ versions }),
@@ -502,7 +559,14 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
     const updated = normalizeResume(JSON.parse(JSON.stringify(version.resume)), get().resume.design);
     const typstSource = renderResumeSource(updated);
     get().saveActiveDocument(updated);
-    set({ resume: updated, typstSource, lastIntakeWarnings: [] });
+    set({
+      resume: updated,
+      typstSource,
+      lastIntakeWarnings: [],
+      svgHtml: null,
+      renderStatus: 'idle',
+      renderError: null,
+    });
     get().saveVersion(translate(getCurrentLocale(), 'versionHistory.restoredLabel', { label: version.label }));
   },
 
@@ -521,6 +585,49 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
   },
 
 }))
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    flushWorkspacePersist();
+  });
+
+  window.addEventListener('storage', event => {
+    if (event.key !== RESUME_WORKSPACE_STORAGE_KEY || !event.newValue) return;
+
+    try {
+      workspacePersist.cancel();
+      const locale = getCurrentLocale();
+      const currentState = useResumeGeneratorStore.getState();
+      const localRevision = getWorkspaceRevision({ documents: currentState.documents });
+      const incomingWorkspace = migrateResumeWorkspace(JSON.parse(event.newValue), locale);
+
+      if (getWorkspaceRevision(incomingWorkspace) <= localRevision) {
+        return;
+      }
+
+      const activeDocument = getActiveDocument(incomingWorkspace);
+      if (!activeDocument) return;
+
+      const resume = normalizeResume(activeDocument.resume);
+      useResumeGeneratorStore.setState({
+        documents: incomingWorkspace.documents,
+        activeDocumentId: incomingWorkspace.activeDocumentId,
+        resume,
+        typstSource: renderResumeSource(resume),
+        svgHtml: null,
+        renderStatus: 'idle',
+        renderError: null,
+        hasDismissedOnboarding: incomingWorkspace.hasDismissedOnboarding,
+      });
+
+      toast.info(translate(locale, 'toast.workspaceSyncedFromOtherTab'), {
+        description: translate(locale, 'toast.workspaceSyncedFromOtherTabDescription'),
+      });
+    } catch {
+      // Cross-tab sync is best-effort.
+    }
+  });
+}
 
 useLocaleStore.subscribe((state, previousState) => {
   if (state.locale === previousState.locale) {

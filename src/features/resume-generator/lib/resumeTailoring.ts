@@ -1,4 +1,5 @@
 import type { ResumeData, ResumeTailoringResult, ResumeTailoringUsage } from '@/types/resume';
+import { throwApiError } from './apiErrors';
 
 const tailoringEndpoint = (import.meta.env.VITE_RESUME_TAILORING_ENDPOINT || '/api/tailor').replace(/\/$/, '');
 
@@ -9,7 +10,7 @@ export async function getTailoringUsage(): Promise<ResumeTailoringUsage> {
   });
 
   if (!response.ok) {
-    throw new Error(await readTailoringError(response));
+    await throwApiError(response, 'errors.tailoringRequestFailed');
   }
 
   return response.json();
@@ -26,18 +27,8 @@ export async function generateTailoredResume(resume: ResumeData, jobDescription:
   });
 
   if (!response.ok) {
-    throw new Error(await readTailoringError(response));
+    await throwApiError(response, 'errors.tailoringRequestFailed');
   }
 
   return response.json();
-}
-
-async function readTailoringError(response: Response): Promise<string> {
-  const payload = await response.json().catch(() => null);
-  const error = payload?.error;
-
-  if (typeof error === 'string') return error;
-  if (error?.message) return error.message;
-
-  return `Tailoring request failed with status ${response.status}`;
 }

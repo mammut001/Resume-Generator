@@ -14,6 +14,7 @@ import {
   inferIntakeUsedModel,
   shouldRecordValidationFailure,
 } from '../observability/events.js';
+import { withQuotaReservation } from '../lib/quotaReservation.js';
 import { recordDomainEvent } from '../observability/requestContext.js';
 
 export const DEFAULT_INTAKE_ATTEMPT_LIMIT = 3;
@@ -67,13 +68,14 @@ export function createIntakeRoute(options: IntakeRouteOptions = {}) {
         recordDomainEvent(req, 'intake_text_requested', {
           textLengthBucket: bucketTextLength(text.length),
         });
-        usageStore.consumeAttempt(req);
-        const draft = await buildResumeDraftFromParagraph(text, options.modelGatewayConfig);
-        recordDomainEvent(req, 'intake_text_completed', {
-          warningCodes: getIntakeWarningCodes(draft.warnings),
-          usedModel: inferIntakeUsedModel(draft.warnings),
+        await withQuotaReservation(usageStore, req, async () => {
+          const draft = await buildResumeDraftFromParagraph(text, options.modelGatewayConfig);
+          recordDomainEvent(req, 'intake_text_completed', {
+            warningCodes: getIntakeWarningCodes(draft.warnings),
+            usedModel: inferIntakeUsedModel(draft.warnings),
+          });
+          sendJson(res, 200, draft);
         });
-        sendJson(res, 200, draft);
         return;
       }
 
@@ -117,29 +119,30 @@ export function createIntakeRoute(options: IntakeRouteOptions = {}) {
           return;
         }
 
-        usageStore.consumeAttempt(req);
-        const draft = await buildResumeDraftFromPdfText(extractedText.text, options.modelGatewayConfig);
-        const warnings = reconcileWarningsWithResume(draft.resume, [
-          ...draft.warnings,
-          ...extractedText.warnings,
-          ...analysisWarnings,
-        ]);
-        recordDomainEvent(req, 'intake_pdf_completed', {
-          pageCount,
-          selectedPageCount,
-          usedOcr: extractedText.usedOcr,
-          warningCodes: getIntakeWarningCodes(warnings),
-          usedModel: inferIntakeUsedModel(draft.warnings),
-        });
-        sendJson(res, 200, {
-          kind: 'draft',
-          requiresPageSelection: false,
-          analysis,
-          ...(selectedPageRange ? { selectedPageRange } : {}),
-          draft: {
-            ...draft,
-            warnings,
-          },
+        await withQuotaReservation(usageStore, req, async () => {
+          const draft = await buildResumeDraftFromPdfText(extractedText.text, options.modelGatewayConfig);
+          const warnings = reconcileWarningsWithResume(draft.resume, [
+            ...draft.warnings,
+            ...extractedText.warnings,
+            ...analysisWarnings,
+          ]);
+          recordDomainEvent(req, 'intake_pdf_completed', {
+            pageCount,
+            selectedPageCount,
+            usedOcr: extractedText.usedOcr,
+            warningCodes: getIntakeWarningCodes(warnings),
+            usedModel: inferIntakeUsedModel(draft.warnings),
+          });
+          sendJson(res, 200, {
+            kind: 'draft',
+            requiresPageSelection: false,
+            analysis,
+            ...(selectedPageRange ? { selectedPageRange } : {}),
+            draft: {
+              ...draft,
+              warnings,
+            },
+          });
         });
         return;
       }
