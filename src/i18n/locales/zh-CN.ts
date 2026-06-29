@@ -737,7 +737,7 @@ export const zhCN = {
   },
   templates: {
     basicResume: {
-      name: 'Basic Resume',
+      name: '基础简历',
       description: '来自 basic-resume Typst 包的 ATS 友好模板，结构直接、易读、保守可靠。',
       layoutLabel: 'ATS 优先单栏',
       tags: {

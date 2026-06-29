@@ -288,6 +288,7 @@ function PreviewSideRail({ resume, readiness, zoom }: { resume: ResumeData; read
   const totalSkills = resume.skills.reduce((total, group) => total + group.items.length, 0);
   const issueCount = readiness.summary.blockerCount + readiness.summary.warningCount + readiness.summary.suggestionCount;
   const readinessTone = readiness.level === 'ready' ? 'ready' : readiness.level === 'blocked' ? 'blocked' : 'review';
+  const pageSizeLabelKey: TranslationKey = resume.design.pageSize === 'a4' ? 'design.pageSize.a4.label' : 'design.pageSize.letter.label';
 
   return (
     <aside className="hidden w-[220px] space-y-3 pt-[52px] min-[1600px]:block" aria-label={t('previewRail.title')} data-coach-target="preview-rail">
@@ -332,7 +333,7 @@ function PreviewSideRail({ resume, readiness, zoom }: { resume: ResumeData; read
       <section className="rounded-lg border border-slate-200 bg-white/80 p-3 shadow-sm shadow-slate-200/50 backdrop-blur">
         <p className="text-xs font-semibold text-slate-900">{t('previewRail.document')}</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <RailMetric label={t('fields.page')} value={resume.design.pageSize.toUpperCase()} />
+          <RailMetric label={t('fields.page')} value={t(pageSizeLabelKey)} />
           <RailMetric label={t('previewRail.zoom')} value={`${zoom}%`} />
           <RailMetric label={t('fields.bullets')} value={totalBullets} />
           <RailMetric label={t('fields.skills')} value={totalSkills} />

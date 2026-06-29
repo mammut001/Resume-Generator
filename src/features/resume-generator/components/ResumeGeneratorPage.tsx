@@ -10,6 +10,10 @@ import { ResumePreviewPanel } from './ResumePreviewPanel';
 import { ToasterComponent } from '@/components/ui/toast';
 
 const COACH_MARKS_STORAGE_KEY = 'resume-generator-coach-marks-dismissed-v1';
+const COACH_MARK_CARD_WIDTH = 240;
+const COACH_MARK_CARD_HEIGHT = 132;
+const COACH_MARK_GAP = 14;
+const COACH_MARK_MARGIN = 16;
 
 type CoachTargetId = 'start' | 'preview-rail' | 'export-actions';
 type CoachPlacement = 'right' | 'left' | 'above' | 'below';
@@ -117,16 +121,18 @@ function CoachMarksLayer({ isOpen, onDismiss }: { isOpen: boolean; onDismiss: ()
     let frameId = 0;
     const updateMarks = () => {
       frameId = window.requestAnimationFrame(() => {
-        setMarks(
-          definitions.flatMap(definition => {
-            const target = document.querySelector<HTMLElement>(`[data-coach-target="${definition.id}"]`);
-            if (!target || !isElementVisible(target)) return [];
+        const nextMarks: CoachMarkRect[] = [];
 
-            const rect = target.getBoundingClientRect();
-            const card = getCoachCardPosition(rect, definition.placement);
-            return [{ id: definition.id, target: rect, card }];
-          }),
-        );
+        definitions.forEach(definition => {
+          const target = document.querySelector<HTMLElement>(`[data-coach-target="${definition.id}"]`);
+          if (!target || !isElementVisible(target)) return;
+
+          const rect = target.getBoundingClientRect();
+          const card = getCoachCardPosition(rect, definition.placement, nextMarks);
+          nextMarks.push({ id: definition.id, target: rect, card });
+        });
+
+        setMarks(nextMarks);
       });
     };
 
@@ -201,29 +207,49 @@ function isElementVisible(element: HTMLElement): boolean {
     && style.visibility !== 'hidden';
 }
 
-function getCoachCardPosition(rect: DOMRect, placement: CoachPlacement): CoachMarkRect['card'] {
-  const gap = 14;
-  const cardWidth = 240;
-  const cardHeight = 132;
-  const margin = 16;
-  let left = rect.right + gap;
+function getCoachCardPosition(rect: DOMRect, placement: CoachPlacement, existingMarks: CoachMarkRect[]): CoachMarkRect['card'] {
+  const placements = uniquePlacements([placement, 'right', 'left', 'above', 'below']);
+  const candidates = placements.map(candidatePlacement => getCoachCardCandidate(rect, candidatePlacement));
+  const nonOverlappingCandidate = candidates.find(candidate => !existingMarks.some(mark => doRectsOverlap(getCardRect(candidate), getCardRect(mark.card))));
+  return nonOverlappingCandidate || candidates[0];
+}
+
+function getCoachCardCandidate(rect: DOMRect, placement: CoachPlacement): CoachMarkRect['card'] {
+  let left = rect.right + COACH_MARK_GAP;
   let top = rect.top;
 
   if (placement === 'left') {
-    left = rect.left - cardWidth - gap;
+    left = rect.left - COACH_MARK_CARD_WIDTH - COACH_MARK_GAP;
     top = rect.top;
   } else if (placement === 'above') {
-    left = rect.right - cardWidth;
-    top = rect.top - cardHeight - gap;
+    left = rect.right - COACH_MARK_CARD_WIDTH;
+    top = rect.top - COACH_MARK_CARD_HEIGHT - COACH_MARK_GAP;
   } else if (placement === 'below') {
-    left = rect.right - cardWidth;
-    top = rect.bottom + gap;
+    left = rect.right - COACH_MARK_CARD_WIDTH;
+    top = rect.bottom + COACH_MARK_GAP;
+  } else {
+    left = rect.right + COACH_MARK_GAP;
   }
 
   return {
-    left: clamp(left, margin, window.innerWidth - cardWidth - margin),
-    top: clamp(top, margin, window.innerHeight - cardHeight - margin),
+    left: clamp(left, COACH_MARK_MARGIN, window.innerWidth - COACH_MARK_CARD_WIDTH - COACH_MARK_MARGIN),
+    top: clamp(top, COACH_MARK_MARGIN, window.innerHeight - COACH_MARK_CARD_HEIGHT - COACH_MARK_MARGIN),
   };
+}
+
+function uniquePlacements(placements: CoachPlacement[]): CoachPlacement[] {
+  return placements.filter((placement, index) => placements.indexOf(placement) === index);
+}
+
+function getCardRect(card: CoachMarkRect['card']): DOMRect {
+  return new DOMRect(card.left, card.top, COACH_MARK_CARD_WIDTH, COACH_MARK_CARD_HEIGHT);
+}
+
+function doRectsOverlap(first: DOMRect, second: DOMRect): boolean {
+  return first.left < second.right
+    && first.right > second.left
+    && first.top < second.bottom
+    && first.bottom > second.top;
 }
 
 function clamp(value: number, min: number, max: number): number {
