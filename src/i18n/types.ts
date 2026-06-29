@@ -340,6 +340,33 @@ export type TranslationSchema = {
     zoomIn: string;
     zoomOut: string;
   };
+  previewRail: {
+    title: string;
+    sections: string;
+    document: string;
+    score: string;
+    issueCount: string;
+    oneIssue: string;
+    zoom: string;
+  };
+  coachMarks: {
+    eyebrow: string;
+    skip: string;
+    gotIt: string;
+    reopen: string;
+    start: {
+      title: string;
+      description: string;
+    };
+    previewRail: {
+      title: string;
+      description: string;
+    };
+    exportActions: {
+      title: string;
+      description: string;
+    };
+  };
   exportPanel: {
     summaryTitle: string;
     summaryDescription: string;

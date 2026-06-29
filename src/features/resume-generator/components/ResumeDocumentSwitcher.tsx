@@ -24,7 +24,7 @@ import { useI18n } from '@/i18n/useI18n';
 import { cn } from '@/lib/utils';
 import { useResumeGeneratorStore } from '../store/resumeGeneratorStore';
 
-const compactButtonClass = 'h-8 w-8 shrink-0 border-slate-200 bg-slate-50 px-0 text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+const compactButtonClass = 'h-8 w-8 shrink-0 border-slate-200 bg-white px-0 text-slate-600 shadow-sm shadow-slate-200/50 hover:bg-slate-50 hover:text-slate-900';
 const inputClass = 'h-8 min-w-0 border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-500 focus-visible:ring-blue-500';
 
 export function ResumeDocumentSwitcher({ className }: { className?: string }) {
@@ -60,12 +60,12 @@ export function ResumeDocumentSwitcher({ className }: { className?: string }) {
           <Files className="h-3.5 w-3.5 shrink-0" />
           {t('documents.label')}
         </p>
-        <span className="shrink-0 text-[10px] text-slate-500">{t('documents.count', { count: documents.length })}</span>
+        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">{t('documents.count', { count: documents.length })}</span>
       </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
         <Select value={activeDocumentId} onValueChange={switchDocument}>
-          <SelectTrigger aria-label={t('documents.switchLabel')} className="h-8 min-w-0 border-slate-200 bg-white px-2.5 text-xs text-slate-900 ring-offset-0 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0 [&>span]:truncate">
+          <SelectTrigger aria-label={t('documents.switchLabel')} className="h-8 min-w-0 border-slate-200 bg-white px-2.5 text-xs text-slate-900 shadow-sm shadow-slate-200/50 ring-offset-0 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0 [&>span]:truncate">
             <SelectValue placeholder={t('documents.switchPlaceholder')} />
           </SelectTrigger>
           <SelectContent className="border-slate-200 bg-white text-slate-900">
@@ -151,7 +151,7 @@ export function ResumeDocumentSwitcher({ className }: { className?: string }) {
       </div>
 
       <p className="break-words text-[11px] leading-4 text-slate-500">{t('documents.helper')}</p>
-      <div className="rounded border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] leading-4 text-slate-500">
+      <div className="rounded-md border border-blue-100 bg-blue-50/60 px-2.5 py-2 text-[11px] leading-4 text-slate-500">
         <p className="flex items-center gap-1.5 font-medium text-slate-700">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-blue-600" />
           {t('documents.localOnlyLabel')}

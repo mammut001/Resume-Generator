@@ -93,8 +93,8 @@ export function ResumeEditorPanel() {
   }, []);
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col border-b border-slate-200 bg-white text-slate-900 lg:flex-none lg:border-b-0 lg:border-r lg:w-[520px] lg:min-w-[430px] lg:max-w-[560px]">
-      <div className="border-b border-slate-100 bg-white px-4 pb-3 pt-4">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col border-b border-slate-200 bg-white text-slate-900 shadow-[1px_0_0_rgba(15,23,42,0.02)] lg:flex-none lg:border-b-0 lg:border-r lg:w-[560px] lg:min-w-[460px] lg:max-w-[600px]">
+      <div className="border-b border-slate-200/70 bg-white px-5 pb-4 pt-5">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600">{t('editor.eyebrow')}</p>
@@ -108,11 +108,11 @@ export function ResumeEditorPanel() {
             </div>
           </div>
         </div>
-        <ResumeDocumentSwitcher className="mt-3" />
+        <ResumeDocumentSwitcher className="mt-4" />
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b border-slate-100 bg-white px-4 py-3">
+        <div className="border-b border-slate-200/70 bg-white px-5 py-3">
           <TabsList className="app-tab-list grid h-auto min-h-9 w-full grid-cols-5">
             <TabsTrigger value="start" className="app-tab-trigger min-w-0">
               {t('tabs.start')}
@@ -132,8 +132,8 @@ export function ResumeEditorPanel() {
           </TabsList>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1 bg-slate-50/70">
-          <TabsContent value="start" className="m-0 space-y-3 p-4">
+        <ScrollArea className="min-h-0 flex-1 bg-slate-50/80">
+          <TabsContent value="start" className="m-0 space-y-3.5 p-5">
             <StartIntakeSection
               showOnboarding={showFirstRunOnboarding}
               onDismissOnboarding={dismissOnboarding}
@@ -142,7 +142,7 @@ export function ResumeEditorPanel() {
             />
           </TabsContent>
 
-          <TabsContent value="content" className="m-0 space-y-3 p-4">
+          <TabsContent value="content" className="m-0 space-y-3.5 p-5">
             {isStarterContent ? <ContextHint title={t('onboarding.context.contentTitle')} description={t('onboarding.context.contentDescription')} /> : null}
             <BasicsSection />
             <SummarySection />
@@ -152,16 +152,16 @@ export function ResumeEditorPanel() {
             <ProjectsSection />
           </TabsContent>
 
-          <TabsContent value="design" className="m-0 space-y-3 p-4">
+          <TabsContent value="design" className="m-0 space-y-3.5 p-5">
             <DesignSection />
           </TabsContent>
 
-          <TabsContent value="tailor" className="m-0 space-y-3 p-4">
+          <TabsContent value="tailor" className="m-0 space-y-3.5 p-5">
             {isStarterContent ? <ContextHint title={t('onboarding.context.tailorTitle')} description={t('onboarding.context.tailorDescription')} /> : null}
             <ResumeTailoringPanel />
           </TabsContent>
 
-          <TabsContent value="export" className="m-0 space-y-3 p-4">
+          <TabsContent value="export" className="m-0 space-y-3.5 p-5">
             {isStarterContent ? <ContextHint title={t('onboarding.context.exportTitle')} description={t('onboarding.context.exportDescription')} /> : null}
             <ExportSection />
             <VersionHistorySection />
@@ -521,44 +521,46 @@ export function StartIntakeSection({
         />
       ) : null}
 
-      <ControlGroup
-        title={t('sections.assistedStart')}
-        icon={PenLine}
-        meta={
-          usage
-            ? t('intake.usage.startsRemainingWithTemplate', {
-                remaining: usage.remainingAttempts,
-                limit: usage.limit,
-                templateName: activeTemplateName,
-              })
-            : t('intake.usage.checkingUsage')
-        }
-        defaultOpen
-      >
-        <div className="grid gap-2 md:grid-cols-3">
-          <StartModeCard
-            icon={FileText}
-            title={t('actions.startFromText')}
-            description={t('intake.cards.startFromTextDescription')}
-            active={activeMode === 'text'}
-            onClick={() => setMode('text')}
-          />
-          <StartModeCard
-            icon={FileUp}
-            title={t('actions.uploadPdf')}
-            description={t('intake.cards.uploadPdfDescription')}
-            active={activeMode === 'pdf'}
-            onClick={handleChoosePdf}
-            disabled={isBusy || Boolean(draft)}
-          />
-          <StartModeCard
-            icon={PenLine}
-            title={t('actions.startManually')}
-            description={t('intake.cards.startManuallyDescription')}
-            onClick={onGoToContent}
-          />
-        </div>
-      </ControlGroup>
+      <div data-coach-target="start">
+        <ControlGroup
+          title={t('sections.assistedStart')}
+          icon={PenLine}
+          meta={
+            usage
+              ? t('intake.usage.startsRemainingWithTemplate', {
+                  remaining: usage.remainingAttempts,
+                  limit: usage.limit,
+                  templateName: activeTemplateName,
+                })
+              : t('intake.usage.checkingUsage')
+          }
+          defaultOpen
+        >
+          <div className="grid gap-2">
+            <StartModeCard
+              icon={FileText}
+              title={t('actions.startFromText')}
+              description={t('intake.cards.startFromTextDescription')}
+              active={activeMode === 'text'}
+              onClick={() => setMode('text')}
+            />
+            <StartModeCard
+              icon={FileUp}
+              title={t('actions.uploadPdf')}
+              description={t('intake.cards.uploadPdfDescription')}
+              active={activeMode === 'pdf'}
+              onClick={handleChoosePdf}
+              disabled={isBusy || Boolean(draft)}
+            />
+            <StartModeCard
+              icon={PenLine}
+              title={t('actions.startManually')}
+              description={t('intake.cards.startManuallyDescription')}
+              onClick={onGoToContent}
+            />
+          </div>
+        </ControlGroup>
+      </div>
 
       {activeMode === 'text' ? (
         <ControlGroup title={t('sections.paragraphIntake')} icon={FileText} meta={t('intake.paragraph.sourceMaterial')} defaultOpen>
@@ -891,14 +893,21 @@ function StartModeCard({
       disabled={disabled}
       aria-pressed={Boolean(active)}
       className={cn(
-        'rounded-md border p-3 text-left transition',
-        active ? 'border-primary/30 bg-primary/5 text-primary' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+        'flex min-h-[76px] items-start gap-3 rounded-md border p-3 text-left transition',
+        active ? 'border-primary/35 bg-blue-50/80 text-primary shadow-sm shadow-blue-100/70' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
         disabled && 'cursor-not-allowed opacity-50 hover:bg-slate-50',
       )}
     >
-      <Icon className="mb-2 h-4 w-4 text-blue-600" />
-      <span className="block text-xs font-semibold text-slate-900">{title}</span>
-      <span className="mt-1 block text-[11px] leading-4 text-slate-500">{description}</span>
+      <span className={cn(
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border',
+        active ? 'border-blue-200 bg-white text-blue-600' : 'border-slate-200 bg-slate-50 text-slate-500',
+      )}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-xs font-semibold text-slate-900">{title}</span>
+        <span className="mt-1 block text-[11px] leading-4 text-slate-500">{description}</span>
+      </span>
     </button>
   );
 }

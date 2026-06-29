@@ -313,6 +313,33 @@ export const en = {
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
   },
+  previewRail: {
+    title: 'Preview details',
+    sections: 'Sections',
+    document: 'Document',
+    score: 'Score',
+    issueCount: '{{count}} issues',
+    oneIssue: '1 issue',
+    zoom: 'Zoom',
+  },
+  coachMarks: {
+    eyebrow: 'Quick guide',
+    skip: 'Skip',
+    gotIt: 'Got it',
+    reopen: 'Show guide',
+    start: {
+      title: 'Start with what you already have',
+      description: 'Paste text, upload a PDF, or continue manually here.',
+    },
+    previewRail: {
+      title: 'Scan readiness without leaving preview',
+      description: 'Section coverage, export health, and document stats live here.',
+    },
+    exportActions: {
+      title: 'Export from the top bar',
+      description: 'Copy source, download .typ, or create the final PDF here.',
+    },
+  },
   exportPanel: {
     summaryTitle: 'Export Summary',
     summaryDescription: 'Confirm the document, template, and filename before downloading.',

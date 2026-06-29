@@ -30,8 +30,8 @@ export function ControlGroup({
   const panelId = `${sectionId}-panel`;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-2">
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
+      <div className="flex items-center gap-2 border-b border-slate-100 bg-white px-3 py-2.5">
         <button
           type="button"
           aria-expanded={isOpen}
@@ -51,7 +51,7 @@ export function ControlGroup({
         {action}
       </div>
       {isOpen && (
-        <div id={panelId} className="space-y-3 p-3">
+        <div id={panelId} className="space-y-3 p-3.5">
           {children}
         </div>
       )}

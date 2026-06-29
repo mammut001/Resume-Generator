@@ -60,19 +60,19 @@
 
 @layer components {
   .app-tab-list {
-    @apply rounded-lg border border-slate-200 bg-slate-100/80 p-1 text-slate-500;
+    @apply rounded-lg border border-slate-200 bg-slate-100/70 p-1 text-slate-500 shadow-inner shadow-white/50;
   }
 
   .app-tab-trigger {
-    @apply rounded-md px-2 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm sm:text-sm;
+    @apply rounded-md px-2.5 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm sm:text-sm;
   }
 
   .app-primary-btn {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+    @apply bg-primary text-primary-foreground shadow-sm shadow-blue-500/20 hover:bg-primary/90;
   }
 
   .app-ghost-btn {
-    @apply border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900;
+    @apply border-slate-200 bg-white text-slate-700 shadow-sm shadow-slate-200/50 hover:bg-slate-50 hover:text-slate-900;
   }
 }
 

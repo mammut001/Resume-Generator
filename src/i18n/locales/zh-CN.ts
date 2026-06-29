@@ -313,6 +313,33 @@ export const zhCN = {
     zoomIn: '放大',
     zoomOut: '缩小',
   },
+  previewRail: {
+    title: '预览信息',
+    sections: '章节',
+    document: '文档',
+    score: '得分',
+    issueCount: '{{count}} 个问题',
+    oneIssue: '1 个问题',
+    zoom: '缩放',
+  },
+  coachMarks: {
+    eyebrow: '快速引导',
+    skip: '跳过',
+    gotIt: '知道了',
+    reopen: '查看引导',
+    start: {
+      title: '从已有材料开始',
+      description: '在这里粘贴文本、上传 PDF，或手动继续编辑。',
+    },
+    previewRail: {
+      title: '不离开预览也能检查状态',
+      description: '这里显示章节覆盖、导出健康度和文档统计。',
+    },
+    exportActions: {
+      title: '从顶部工具栏导出',
+      description: '在这里复制源码、下载 .typ，或生成最终 PDF。',
+    },
+  },
   exportPanel: {
     summaryTitle: '导出摘要',
     summaryDescription: '下载前确认文档、模板和文件名。',
