@@ -322,4 +322,36 @@ describe('resumeGeneratorStore document workspace', () => {
     expect(persisted.documents).toHaveLength(2);
     expect(persisted.documents.find(document => document.id === persisted.activeDocumentId)?.title).toBe('Tailored Platform Resume');
   });
+
+  it('rebases a persisted starter resume from another locale to the requested locale on load', () => {
+    // Simulate a workspace that was created/saved while locale was zh-CN
+    const zhStarterWorkspace = createDefaultResumeWorkspace('zh-CN');
+    saveResumeWorkspace(zhStarterWorkspace);
+
+    // Now load requesting English: starter content should be rebased to English sample
+    const loaded = loadResumeWorkspace('en');
+    expect(loaded.documents[0].resume.personal.fullName).toBe(getDefaultResume('en').personal.fullName);
+    expect(loaded.documents[0].resume.title).toBe(getDefaultResume('en').title);
+    // Should no longer match the zh sample
+    expect(loaded.documents[0].resume.personal.fullName).not.toBe(getDefaultResume('zh-CN').personal.fullName);
+  });
+
+  it('does not rebase edited (non-starter) content even if locale differs', () => {
+    const base = createDefaultResumeWorkspace('zh-CN');
+    const edited = {
+      ...base,
+      documents: base.documents.map(d => ({
+        ...d,
+        resume: {
+          ...d.resume,
+          personal: { ...d.resume.personal, fullName: '自定义编辑姓名' },
+        },
+      })),
+    };
+    saveResumeWorkspace(edited);
+
+    const loaded = loadResumeWorkspace('en');
+    // Keeps the custom edit, does not replace with en sample
+    expect(loaded.documents[0].resume.personal.fullName).toBe('自定义编辑姓名');
+  });
 });

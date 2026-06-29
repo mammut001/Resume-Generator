@@ -1,6 +1,7 @@
-import { DEFAULT_LOCALE, getCurrentLocale, translate, type SupportedLocale } from '@/i18n';
+import { DEFAULT_LOCALE, getCurrentLocale, SUPPORTED_LOCALES, translate, type SupportedLocale } from '@/i18n';
 import type { ResumeData, ResumeDocument, ResumeWorkspace } from '@/types/resume';
 import { getDefaultResume } from '../data/defaultResume';
+import { isStarterResume } from './resumeOnboarding';
 
 export const RESUME_WORKSPACE_STORAGE_KEY = 'resume-generator-workspace';
 export const RESUME_WORKSPACE_SCHEMA_VERSION = 1;
@@ -14,9 +15,12 @@ type CreateResumeDocumentOptions = {
 export function loadResumeWorkspace(locale: SupportedLocale = DEFAULT_LOCALE): ResumeWorkspace {
   try {
     const stored = getStorage()?.getItem(RESUME_WORKSPACE_STORAGE_KEY);
-    if (!stored) return createDefaultResumeWorkspace(locale);
+    if (!stored) {
+      return createDefaultResumeWorkspace(locale);
+    }
 
-    return migrateResumeWorkspace(JSON.parse(stored), locale);
+    const workspace = migrateResumeWorkspace(JSON.parse(stored), locale);
+    return rebaseStarterToCurrentLocale(workspace, locale);
   } catch {
     return createDefaultResumeWorkspace(locale);
   }
@@ -101,7 +105,7 @@ export function normalizeResumeWorkspace(workspace: ResumeWorkspace): ResumeWork
     }));
 
   if (documents.length === 0) {
-    return createDefaultResumeWorkspace();
+    return createDefaultResumeWorkspace(locale);
   }
 
   const activeDocumentId = documents.some(document => document.id === workspace.activeDocumentId)
@@ -114,6 +118,45 @@ export function normalizeResumeWorkspace(workspace: ResumeWorkspace): ResumeWork
     documents,
     hasDismissedOnboarding: workspace.hasDismissedOnboarding === true,
   };
+}
+
+/**
+ * If any document's resume exactly matches a starter sample for a *different*
+ * locale, replace its resume data with the sample for the target `locale`.
+ *
+ * Combined with rebaseResumeIfStarter in setResume + initial + cross-tab,
+ * plus auto-correction in LanguageSwitcher (useLayoutEffect), mismatched
+ * starters are always silently replaced. The yellow "Content is in ..."
+ * banner has been removed because we now guarantee auto-replace.
+ */
+export function rebaseStarterToCurrentLocale(workspace: ResumeWorkspace, locale: SupportedLocale): ResumeWorkspace {
+  const documents = workspace.documents.map(document => {
+    const rebasedResume = rebaseResumeIfStarter(document.resume, locale);
+    if (rebasedResume === document.resume) {
+      return document;
+    }
+    return {
+      ...document,
+      resume: rebasedResume,
+    };
+  });
+
+  return {
+    ...workspace,
+    documents,
+  };
+}
+
+export function rebaseResumeIfStarter(resume: ResumeData, locale: SupportedLocale): ResumeData {
+  if (isStarterResume(resume, locale)) {
+    return resume;
+  }
+  for (const other of SUPPORTED_LOCALES) {
+    if (other !== locale && isStarterResume(resume, other)) {
+      return cloneResume(getDefaultResume(locale));
+    }
+  }
+  return resume;
 }
 
 export function cloneResume<T extends ResumeData>(resume: T): T {

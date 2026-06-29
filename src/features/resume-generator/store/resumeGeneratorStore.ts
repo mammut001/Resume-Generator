@@ -12,10 +12,12 @@ import {
   cloneResume,
   createResumeDocument,
   loadResumeWorkspace,
+  migrateResumeWorkspace,
+  rebaseResumeIfStarter,
+  rebaseStarterToCurrentLocale,
   RESUME_WORKSPACE_STORAGE_KEY,
   saveResumeWorkspace,
   shouldNotifyPersistenceFailure,
-  migrateResumeWorkspace,
 } from '../lib/resumePersistence';
 import { isStarterResume } from '../lib/resumeOnboarding';
 
@@ -117,7 +119,7 @@ function normalizeResume(resume: ResumeData, fallbackDesign = resumeDesignDefaul
 const initialLocale = useLocaleStore.getState().locale;
 const initialWorkspace = loadResumeWorkspace(initialLocale);
 const initialDocument = getActiveDocument(initialWorkspace) || createResumeDocument(getDefaultResume(initialLocale));
-const initialResume = normalizeResume(initialDocument.resume);
+const initialResume = normalizeResume(rebaseResumeIfStarter(initialDocument.resume, initialLocale));
 
 function renderResumeSource(resume: ResumeData): string {
   return renderResumeToTypst(resume, resume.templateId, getCurrentLocale());
@@ -177,7 +179,9 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
   hasDismissedOnboarding: initialWorkspace.hasDismissedOnboarding,
 
   setResume: (resume) => {
-    const normalized = normalizeResume(resume, get().resume.design);
+    const locale = getCurrentLocale();
+    const rebased = rebaseResumeIfStarter(resume, locale);
+    const normalized = normalizeResume(rebased, get().resume.design);
     const typstSource = renderResumeSource(normalized);
     get().saveActiveDocument(normalized);
     set({ resume: normalized, typstSource });
@@ -599,7 +603,8 @@ if (typeof window !== 'undefined') {
       const locale = getCurrentLocale();
       const currentState = useResumeGeneratorStore.getState();
       const localRevision = getWorkspaceRevision({ documents: currentState.documents });
-      const incomingWorkspace = migrateResumeWorkspace(JSON.parse(event.newValue), locale);
+      let incomingWorkspace = migrateResumeWorkspace(JSON.parse(event.newValue), locale);
+      incomingWorkspace = rebaseStarterToCurrentLocale(incomingWorkspace, locale);
 
       if (getWorkspaceRevision(incomingWorkspace) <= localRevision) {
         return;
@@ -608,7 +613,8 @@ if (typeof window !== 'undefined') {
       const activeDocument = getActiveDocument(incomingWorkspace);
       if (!activeDocument) return;
 
-      const resume = normalizeResume(activeDocument.resume);
+      const rebasedResume = rebaseResumeIfStarter(activeDocument.resume, locale);
+      const resume = normalizeResume(rebasedResume);
       useResumeGeneratorStore.setState({
         documents: incomingWorkspace.documents,
         activeDocumentId: incomingWorkspace.activeDocumentId,

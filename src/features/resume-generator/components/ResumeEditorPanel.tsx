@@ -177,18 +177,25 @@ function LanguageSwitcher() {
   const { resume, setResume } = useResumeGeneratorStore();
   const [contentLocale, setContentLocale] = React.useState<SupportedLocale | null>(null);
 
-  // Detect which locale the resume content is in (if any) by matching the starter
-  React.useEffect(() => {
+  // We auto-correct starter samples to always match the current UI locale.
+  // This guarantees the yellow "Content is in ..." mismatch banner never appears.
+  // If a starter resume from a different locale is somehow present (stale storage,
+  // cross-tab, etc.), we silently replace it with the correct locale's sample.
+  React.useLayoutEffect(() => {
     for (const candidate of SUPPORTED_LOCALES) {
       if (isStarterResume(resume, candidate)) {
+        if (candidate !== locale) {
+          // Auto-replace to match current locale (silent, no toast spam)
+          setResume(getDefaultResume(locale));
+          setContentLocale(locale);
+          return;
+        }
         setContentLocale(candidate);
         return;
       }
     }
     setContentLocale(null); // content has been edited; no clear locale
-  }, [resume]);
-
-  const hasMismatch = contentLocale !== null && contentLocale !== locale;
+  }, [resume, locale]);
 
   const loadLocalizedSample = () => {
     const sample = getDefaultResume(locale);
@@ -217,19 +224,13 @@ function LanguageSwitcher() {
         </SelectContent>
       </Select>
       <p className="px-0.5 text-[10px] leading-snug text-slate-500">{t('localeSwitcher.hint')}</p>
-      {hasMismatch && contentLocale ? (
+      {contentLocale === null ? (
         <button
           type="button"
           onClick={loadLocalizedSample}
-          className="flex w-full items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-1.5 py-1 text-left text-[10px] leading-snug text-amber-900 transition hover:bg-amber-100"
+          className="px-0.5 text-left text-[10px] text-blue-600 transition hover:underline"
         >
-          <span className="flex-1">
-            <span className="block font-semibold">{t('localeSwitcher.mismatchTitle', { locale: LOCALE_LABELS[contentLocale] })}</span>
-            <span className="block text-amber-800">{t('localeSwitcher.mismatchAction', { locale: LOCALE_LABELS[locale] })}</span>
-          </span>
-          <span className="shrink-0 rounded bg-amber-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">
-            {t('localeSwitcher.mismatchCta', { locale: LOCALE_LABELS[locale] })}
-          </span>
+          {t('localeSwitcher.loadSample', { locale: LOCALE_LABELS[locale] })}
         </button>
       ) : null}
     </div>
