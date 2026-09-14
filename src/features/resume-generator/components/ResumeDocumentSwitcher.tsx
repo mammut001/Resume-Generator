@@ -24,8 +24,8 @@ import { useI18n } from '@/i18n/useI18n';
 import { cn } from '@/lib/utils';
 import { useResumeGeneratorStore } from '../store/resumeGeneratorStore';
 
-const compactButtonClass = 'h-8 w-8 shrink-0 border-slate-200 bg-white px-0 text-slate-600 shadow-sm shadow-slate-200/50 hover:bg-slate-50 hover:text-slate-900';
-const inputClass = 'h-8 min-w-0 border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-500 focus-visible:ring-blue-500';
+const compactButtonClass = 'h-8 w-8 shrink-0 border-slate-200 bg-white px-0 text-slate-600 shadow-sm shadow-slate-200/50 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:shadow-none dark:hover:bg-slate-800 dark:hover:text-slate-100';
+const inputClass = 'h-8 min-w-0 border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-500 focus-visible:ring-blue-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500';
 
 export function ResumeDocumentSwitcher({ className }: { className?: string }) {
   const {
@@ -56,21 +56,21 @@ export function ResumeDocumentSwitcher({ className }: { className?: string }) {
   return (
     <section className={cn('space-y-2', className)} aria-label={t('documents.managerLabel')}>
       <div className="flex items-center justify-between gap-2">
-        <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+        <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
           <Files className="h-3.5 w-3.5 shrink-0" />
           {t('documents.label')}
         </p>
-        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">{t('documents.count', { count: documents.length })}</span>
+        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('documents.count', { count: documents.length })}</span>
       </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
         <Select value={activeDocumentId} onValueChange={switchDocument}>
-          <SelectTrigger aria-label={t('documents.switchLabel')} className="h-8 min-w-0 border-slate-200 bg-white px-2.5 text-xs text-slate-900 shadow-sm shadow-slate-200/50 ring-offset-0 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0 [&>span]:truncate">
+          <SelectTrigger aria-label={t('documents.switchLabel')} className="h-8 min-w-0 border-slate-200 bg-white px-2.5 text-xs text-slate-900 shadow-sm shadow-slate-200/50 ring-offset-0 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0 [&>span]:truncate dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:shadow-none">
             <SelectValue placeholder={t('documents.switchPlaceholder')} />
           </SelectTrigger>
-          <SelectContent className="border-slate-200 bg-white text-slate-900">
+          <SelectContent className="border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
             {documents.map(document => (
-              <SelectItem key={document.id} value={document.id} className="max-w-[min(360px,calc(100vw-2rem))] truncate focus:bg-slate-100 focus:text-slate-900">
+              <SelectItem key={document.id} value={document.id} className="max-w-[min(360px,calc(100vw-2rem))] truncate focus:bg-slate-100 focus:text-slate-900 dark:focus:bg-slate-800 dark:focus:text-slate-100">
                 {document.title}
               </SelectItem>
             ))}
@@ -86,7 +86,7 @@ export function ResumeDocumentSwitcher({ className }: { className?: string }) {
       <Button
         type="button"
         variant="outline"
-        className="h-8 w-full justify-center gap-1.5 border-slate-200 bg-white px-2.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 sm:hidden"
+        className="h-8 w-full justify-center gap-1.5 border-slate-200 bg-white px-2.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-slate-900 sm:hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
         onClick={() => setIsManageOpen(previous => !previous)}
         aria-expanded={isManageOpen}
         aria-controls="resume-document-manage-controls"

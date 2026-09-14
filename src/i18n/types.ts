@@ -44,11 +44,23 @@ export type TranslationSchema = {
     select: string;
     current: string;
     checking: string;
+    moveUp: string;
+    moveDown: string;
+    collapse: string;
+    expand: string;
+    collapseAll: string;
+    expandAll: string;
   };
   localeSwitcher: {
     label: string;
     hint: string;
     loadSample: string;
+  };
+  theme: {
+    label: string;
+    light: string;
+    dark: string;
+    system: string;
   };
   tabs: {
     start: string;
@@ -71,6 +83,10 @@ export type TranslationSchema = {
   };
   editor: {
     eyebrow: string;
+    actionVerbs: string;
+    actionVerbsHint: string;
+    copyTemplate: string;
+    copiedToClipboard: string;
   };
   documents: {
     label: string;
@@ -339,6 +355,11 @@ export type TranslationSchema = {
     zoomOut: string;
     open: string;
     close: string;
+    fitWidth: string;
+    fitPage: string;
+    resetZoom: string;
+    pageBoundary: string;
+    overflowWarning: string;
   };
   previewRail: {
     title: string;
@@ -587,6 +608,10 @@ export type TranslationSchema = {
     applySelectedAsNewDocument: string;
     acceptedCount: string;
     rejectedCount: string;
+    matchScore: string;
+    acceptAll: string;
+    rejectAll: string;
+    copyKeyword: string;
     acceptChange: string;
     rejectChange: string;
     selectedDraftPreview: string;
@@ -692,6 +717,8 @@ export type TranslationSchema = {
       rose: string;
       graphite: string;
     };
+    customColor: string;
+    customColorHex: string;
   };
   templates: {
     basicResume: TemplateTranslation;

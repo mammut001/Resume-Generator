@@ -15,11 +15,23 @@ export const zhCN = {
     select: '选择',
     current: '当前',
     checking: '检查中',
+    moveUp: '上移',
+    moveDown: '下移',
+    collapse: '折叠',
+    expand: '展开',
+    collapseAll: '全部折叠',
+    expandAll: '全部展开',
   },
   localeSwitcher: {
     label: '语言',
     hint: '仅切换界面语言，简历内容保持原样。',
     loadSample: '加载 {{locale}} 示例',
+  },
+  theme: {
+    label: '主题',
+    light: '浅色',
+    dark: '深色',
+    system: '跟随系统',
   },
   tabs: {
     start: '开始',
@@ -42,6 +54,10 @@ export const zhCN = {
   },
   editor: {
     eyebrow: '简历生成器',
+    actionVerbs: '行动动词与描写助手',
+    actionVerbsHint: '使用强动词与 XYZ 公式：通过做 [Z] 达成 [X]，以 [Y] 衡量。',
+    copyTemplate: '复制公式',
+    copiedToClipboard: '已复制到剪贴板',
   },
   documents: {
     label: '简历文档',
@@ -312,6 +328,11 @@ export const zhCN = {
     zoomOut: '缩小',
     open: '查看预览',
     close: '返回编辑',
+    fitWidth: '适应宽度',
+    fitPage: '整页自适应',
+    resetZoom: '重置缩放 (100%)',
+    pageBoundary: '第 1 / 2 页分页线',
+    overflowWarning: '内容略微超出单页。建议将排版间距设为紧凑或精简要点以刚好单页排版。',
   },
   previewRail: {
     title: '预览信息',
@@ -629,6 +650,10 @@ export const zhCN = {
     applySelectedAsNewDocument: '应用已接受变更',
     acceptedCount: '已接受 {{count}} 项',
     rejectedCount: '已拒绝 {{count}} 项',
+    matchScore: 'ATS 岗位匹配度',
+    acceptAll: '全部采纳',
+    rejectAll: '全部放弃',
+    copyKeyword: '复制关键词',
     acceptChange: '接受',
     rejectChange: '拒绝',
     selectedDraftPreview: '已选草稿预览',
@@ -734,6 +759,8 @@ export const zhCN = {
       rose: '玫瑰红',
       graphite: '石墨灰',
     },
+    customColor: '自定义颜色',
+    customColorHex: '颜色代码',
   },
   templates: {
     basicResume: {

@@ -39,3 +39,14 @@ export const accentPaletteOptions: Array<{ nameKey: TranslationKey; value: strin
   { nameKey: 'design.accent.rose', value: '#be123c' },
   { nameKey: 'design.accent.graphite', value: '#334155' },
 ];
+
+export const PAGE_DIMENSIONS = {
+  a4: { width: 794, height: 1123 },
+  letter: { width: 816, height: 1056 },
+} as const;
+
+export const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
+
+export function isValidHexColor(color: string): boolean {
+  return HEX_COLOR_REGEX.test(color);
+}

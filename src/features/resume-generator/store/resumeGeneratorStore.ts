@@ -44,15 +44,18 @@ interface ResumeGeneratorState {
   addExperience: () => void;
   updateExperience: (id: string, updates: Partial<ResumeData['experience'][0]>) => void;
   removeExperience: (id: string) => void;
+  moveExperience: (id: string, direction: 'up' | 'down') => void;
   addEducation: () => void;
   updateEducation: (id: string, updates: Partial<ResumeData['education'][0]>) => void;
   removeEducation: (id: string) => void;
+  moveEducation: (id: string, direction: 'up' | 'down') => void;
   addSkill: () => void;
   updateSkill: (id: string, updates: Partial<ResumeData['skills'][0]>) => void;
   removeSkill: (id: string) => void;
   addProject: () => void;
   updateProject: (id: string, updates: Partial<ResumeData['projects'][0]>) => void;
   removeProject: (id: string) => void;
+  moveProject: (id: string, direction: 'up' | 'down') => void;
   setSvgHtml: (html: string | null) => void;
   setRenderStatus: (status: RenderStatus, error?: string) => void;
   setLastIntakeWarnings: (warnings: ResumeIntakeWarning[]) => void;
@@ -77,6 +80,17 @@ function generateId(): string {
   }
 
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function reorderItem<T extends { id: string }>(items: T[], id: string, direction: 'up' | 'down'): T[] | null {
+  const index = items.findIndex(item => item.id === id);
+  if (index === -1) return null;
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= items.length) return null;
+  const copy = [...items];
+  const [removed] = copy.splice(index, 1);
+  copy.splice(targetIndex, 0, removed);
+  return copy;
 }
 
 type WorkspacePersistPayload = {
@@ -269,6 +283,16 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
     set({ resume: updated, typstSource });
   },
 
+  moveExperience: (id, direction) => {
+    const { resume } = get();
+    const experience = reorderItem(resume.experience, id, direction);
+    if (!experience) return;
+    const updated = { ...resume, experience };
+    const typstSource = renderResumeSource(updated);
+    get().saveActiveDocument(updated);
+    set({ resume: updated, typstSource });
+  },
+
   addEducation: () => {
     const { resume } = get();
     const newEdu = {
@@ -301,6 +325,16 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
       ...resume,
       education: resume.education.filter(edu => edu.id !== id),
     };
+    const typstSource = renderResumeSource(updated);
+    get().saveActiveDocument(updated);
+    set({ resume: updated, typstSource });
+  },
+
+  moveEducation: (id, direction) => {
+    const { resume } = get();
+    const education = reorderItem(resume.education, id, direction);
+    if (!education) return;
+    const updated = { ...resume, education };
     const typstSource = renderResumeSource(updated);
     get().saveActiveDocument(updated);
     set({ resume: updated, typstSource });
@@ -376,6 +410,16 @@ export const useResumeGeneratorStore = create<ResumeGeneratorState>((set, get) =
       ...resume,
       projects: resume.projects.filter(proj => proj.id !== id),
     };
+    const typstSource = renderResumeSource(updated);
+    get().saveActiveDocument(updated);
+    set({ resume: updated, typstSource });
+  },
+
+  moveProject: (id, direction) => {
+    const { resume } = get();
+    const projects = reorderItem(resume.projects, id, direction);
+    if (!projects) return;
+    const updated = { ...resume, projects };
     const typstSource = renderResumeSource(updated);
     get().saveActiveDocument(updated);
     set({ resume: updated, typstSource });

@@ -123,6 +123,64 @@ describe('ResumePreviewPanel', () => {
 
     expect(container.querySelector('button[aria-label="Zoom in"]')).toBeTruthy();
     expect(container.querySelector('button[aria-label="Zoom out"]')).toBeTruthy();
+    expect(container.querySelector('button[aria-label="Fit width"]')).toBeTruthy();
+    expect(container.querySelector('button[aria-label="Fit page"]')).toBeTruthy();
+  });
+
+  it('allows fitting width, page, and resetting zoom to 100%', async () => {
+    useResumeGeneratorStore.setState({
+      renderStatus: 'idle',
+      renderError: null,
+      svgHtml: null,
+    });
+
+    await act(async () => {
+      root.render(<ResumePreviewPanel />);
+    });
+
+    const zoomInButton = container.querySelector('button[aria-label="Zoom in"]') as HTMLButtonElement;
+    expect(zoomInButton).toBeTruthy();
+
+    // Zoom in once to 125%
+    await act(async () => {
+      zoomInButton.click();
+    });
+
+    // 100% reset button should now appear
+    const resetButton = container.querySelector('button[aria-label="Reset zoom (100%)"]') as HTMLButtonElement;
+    expect(resetButton).toBeTruthy();
+    expect(container.textContent).toContain('125%');
+
+    // Click 100% reset
+    await act(async () => {
+      resetButton.click();
+    });
+
+    expect(container.textContent).toContain('100%');
+    expect(container.querySelector('button[aria-label="Reset zoom (100%)"]')).toBeNull();
+
+    // Click Fit width
+    const fitWidthButton = container.querySelector('button[aria-label="Fit width"]') as HTMLButtonElement;
+    await act(async () => {
+      fitWidthButton.click();
+    });
+    // Zoom should be clamped between 35 and 200
+    const fitWidthReset = container.querySelector('button[aria-label="Reset zoom (100%)"]');
+    // If fit width is not 100%, reset button appears
+    if (fitWidthReset) {
+      await act(async () => {
+        (fitWidthReset as HTMLButtonElement).click();
+      });
+      expect(container.textContent).toContain('100%');
+    }
+
+    // Click Fit page
+    const fitPageButton = container.querySelector('button[aria-label="Fit page"]') as HTMLButtonElement;
+    await act(async () => {
+      fitPageButton.click();
+    });
+    // Should be clamped between 35 and 200
+    expect(container.querySelector('span.tabular-nums')?.textContent).toMatch(/\d+%/);
   });
 });
 

@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   Briefcase,
   Check,
+  ChevronDown,
+  Copy,
   Eye,
   FileText,
   FileUp,
@@ -12,8 +14,10 @@ import {
   GraduationCap,
   History,
   Languages,
+  Laptop,
   Layers,
   Loader2,
+  Moon,
   Palette,
   PenLine,
   Plus,
@@ -22,6 +26,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Sun,
   Trash2,
   UserRound,
   Wrench,
@@ -29,6 +34,7 @@ import {
 import { toast } from 'sonner';
 import { LOCALE_LABELS, SUPPORTED_LOCALES, type SupportedLocale } from '@/i18n';
 import { useI18n } from '@/i18n/useI18n';
+import { useThemeStore, type Theme } from '@/lib/themeStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +52,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { trackAnalyticsEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import { PdfDocumentAnalysis, PdfIntakeResponse, PdfSelectionRequiredResponse, ResumeData, ResumeIntakeResult, ResumeIntakeUsage } from '@/types/resume';
-import { accentPaletteOptions, densityOptions, pageSizeOptions, typographyOptions } from '../data/resumeDesign';
+import { accentPaletteOptions, densityOptions, isValidHexColor, pageSizeOptions, typographyOptions } from '../data/resumeDesign';
 import { resolveTemplateId, resumeTemplates } from '../data/resumeTemplates';
 import { formatError } from '../lib/formatError';
 import { formatIntakeWarningMessage } from '../lib/formatIntakeWarning';
@@ -100,16 +106,21 @@ export function ResumeEditorPanel({
   }, []);
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col border-b border-slate-200 bg-white text-slate-900 shadow-[1px_0_0_rgba(15,23,42,0.02)] lg:flex-none lg:border-b-0 lg:border-r lg:w-[560px] lg:min-w-[460px] lg:max-w-[600px]">
-      <div className="border-b border-slate-200/70 bg-white px-5 pb-4 pt-5">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col border-b border-slate-200 bg-white text-slate-900 shadow-[1px_0_0_rgba(15,23,42,0.02)] lg:flex-none lg:border-b-0 lg:border-r lg:w-[560px] lg:min-w-[460px] lg:max-w-[600px] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+      <div className="border-b border-slate-200/70 bg-white px-5 pb-4 pt-5 dark:border-slate-800 dark:bg-slate-900">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600">{t('editor.eyebrow')}</p>
-            <h1 className="mt-1 line-clamp-2 text-lg font-semibold leading-6 text-slate-900" title={resume.title}>{resume.title}</h1>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">{t('editor.eyebrow')}</p>
+            <h1 className="mt-1 line-clamp-2 text-lg font-semibold leading-6 text-slate-900 dark:text-slate-100" title={resume.title}>{resume.title}</h1>
           </div>
 
-          <div className="w-full space-y-2 sm:w-[156px] sm:shrink-0">
-            <LanguageSwitcher />
+          <div className="w-full space-y-2 sm:w-[280px] sm:shrink-0">
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <LanguageSwitcher />
+              </div>
+              <ThemeSwitcher />
+            </div>
             <div className="flex sm:justify-end">
               <StatusPill status={renderStatus} />
             </div>
@@ -119,7 +130,7 @@ export function ResumeEditorPanel({
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b border-slate-200/70 bg-white px-5 py-3">
+        <div className="border-b border-slate-200/70 bg-white px-5 py-3 dark:border-slate-800 dark:bg-slate-900">
           <TabsList className="app-tab-list grid h-auto min-h-9 w-full grid-cols-5">
             <TabsTrigger value="start" className="app-tab-trigger min-w-0">
               {t('tabs.start')}
@@ -139,7 +150,7 @@ export function ResumeEditorPanel({
           </TabsList>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1 bg-slate-50/80">
+        <ScrollArea className="min-h-0 flex-1 bg-slate-50/80 dark:bg-slate-950/60">
           <TabsContent value="start" className="m-0 space-y-3.5 p-5">
             <StartIntakeSection
               showOnboarding={showFirstRunOnboarding}
@@ -176,7 +187,7 @@ export function ResumeEditorPanel({
         </ScrollArea>
       </Tabs>
       {onInspectPreview ? (
-        <div className="border-t border-slate-200/80 bg-white px-5 py-3 lg:hidden">
+        <div className="border-t border-slate-200/80 bg-white px-5 py-3 lg:hidden dark:border-slate-800 dark:bg-slate-900">
           <Button
             type="button"
             className={cn(primaryButtonClass, 'h-10 w-full')}
@@ -190,6 +201,84 @@ export function ResumeEditorPanel({
           </Button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+export function ThemeSwitcher({ className }: { className?: string } = {}) {
+  const { theme, setTheme } = useThemeStore();
+  const { t } = useI18n();
+
+  const cycleTheme = () => {
+    const sequence: Theme[] = ['system', 'light', 'dark'];
+    const nextIndex = (sequence.indexOf(theme) + 1) % sequence.length;
+    setTheme(sequence[nextIndex]);
+  };
+
+  const getThemeIcon = (targetTheme: Theme) => {
+    switch (targetTheme) {
+      case 'light':
+        return <Sun className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
+      case 'dark':
+        return <Moon className="h-3.5 w-3.5 text-blue-400 shrink-0" />;
+      case 'system':
+      default:
+        return <Laptop className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />;
+    }
+  };
+
+  return (
+    <div className={cn('space-y-1', className)}>
+      <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        {t('theme.label')}
+      </Label>
+      <div className="flex items-center gap-1">
+        <Select value={theme} onValueChange={value => setTheme(value as Theme)}>
+          <SelectTrigger
+            aria-label={t('theme.label')}
+            title={`${t('theme.label')}: ${t(`theme.${theme}`)}`}
+            data-testid="theme-switcher-select"
+            className="h-8 min-w-[92px] border-slate-200 bg-white px-2 text-xs text-slate-900 ring-offset-0 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+          >
+            <div className="flex items-center gap-1.5">
+              {getThemeIcon(theme)}
+              <SelectValue />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+            <SelectItem value="system" className="focus:bg-slate-100 focus:text-slate-900 dark:focus:bg-slate-800 dark:focus:text-slate-100">
+              <div className="flex items-center gap-2">
+                <Laptop className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                <span>{t('theme.system')}</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="light" className="focus:bg-slate-100 focus:text-slate-900 dark:focus:bg-slate-800 dark:focus:text-slate-100">
+              <div className="flex items-center gap-2">
+                <Sun className="h-3.5 w-3.5 text-amber-500" />
+                <span>{t('theme.light')}</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="dark" className="focus:bg-slate-100 focus:text-slate-900 dark:focus:bg-slate-800 dark:focus:text-slate-100">
+              <div className="flex items-center gap-2">
+                <Moon className="h-3.5 w-3.5 text-blue-400" />
+                <span>{t('theme.dark')}</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          data-testid="theme-switcher"
+          aria-label={`${t('theme.label')}: ${t(`theme.${theme}`)}`}
+          title={`${t('theme.label')}: ${t(`theme.${theme}`)}`}
+          className="h-8 w-8 shrink-0 border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+          onClick={cycleTheme}
+        >
+          {getThemeIcon(theme)}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -229,23 +318,23 @@ function LanguageSwitcher() {
 
   return (
     <div className="space-y-1">
-      <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('localeSwitcher.label')}</Label>
+      <Label className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('localeSwitcher.label')}</Label>
       <Select value={locale} onValueChange={value => setLocale(value as SupportedLocale)}>
-        <SelectTrigger aria-label={t('localeSwitcher.label')} className="h-8 border-slate-200 bg-white px-2.5 text-xs text-slate-900 ring-offset-0 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0">
+        <SelectTrigger aria-label={t('localeSwitcher.label')} className="h-8 border-slate-200 bg-white px-2.5 text-xs text-slate-900 ring-offset-0 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
           <div className="flex items-center gap-2">
-            <Languages className="h-3.5 w-3.5 text-blue-600" />
+            <Languages className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
             <SelectValue />
           </div>
         </SelectTrigger>
-        <SelectContent className="border-slate-200 bg-white text-slate-900">
+        <SelectContent className="border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
           {SUPPORTED_LOCALES.map(item => (
-            <SelectItem key={item} value={item} className="focus:bg-slate-100 focus:text-slate-900">
+            <SelectItem key={item} value={item} className="focus:bg-slate-100 focus:text-slate-900 dark:focus:bg-slate-800 dark:focus:text-slate-100">
               {LOCALE_LABELS[item]}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <p className="px-0.5 text-[10px] leading-snug text-slate-500">{t('localeSwitcher.hint')}</p>
+      <p className="px-0.5 text-[10px] leading-snug text-slate-500 dark:text-slate-400">{t('localeSwitcher.hint')}</p>
       {contentLocale === null ? (
         <button
           type="button"
@@ -263,14 +352,14 @@ function StatusPill({ status }: { status: 'idle' | 'rendering' | 'success' | 'er
   const { t } = useI18n();
 
   const statusConfig = {
-    idle: { label: t('status.idle'), className: 'border-slate-500/40 text-slate-600', dot: 'bg-slate-400' },
-    rendering: { label: t('status.rendering'), className: 'border-primary/30 text-primary', dot: 'bg-primary' },
-    success: { label: t('status.ready'), className: 'border-emerald-200 text-emerald-700', dot: 'bg-emerald-300' },
-    error: { label: t('status.error'), className: 'border-rose-200 text-rose-700', dot: 'bg-rose-300' },
+    idle: { label: t('status.idle'), className: 'border-slate-500/40 text-slate-600 dark:border-slate-700 dark:text-slate-400', dot: 'bg-slate-400 dark:bg-slate-500' },
+    rendering: { label: t('status.rendering'), className: 'border-primary/30 text-primary dark:border-primary/50 dark:text-blue-400', dot: 'bg-primary' },
+    success: { label: t('status.ready'), className: 'border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400', dot: 'bg-emerald-300 dark:bg-emerald-400' },
+    error: { label: t('status.error'), className: 'border-rose-200 text-rose-700 dark:border-rose-900 dark:text-rose-400', dot: 'bg-rose-300 dark:bg-rose-400' },
   }[status];
 
   return (
-    <Badge variant="outline" className={cn('gap-1.5 rounded border bg-slate-50 px-2 py-1 text-[11px]', statusConfig.className)}>
+    <Badge variant="outline" className={cn('gap-1.5 rounded border bg-slate-50 px-2 py-1 text-[11px] dark:bg-slate-900', statusConfig.className)}>
       {status === 'rendering' ? <Loader2 className="h-3 w-3 animate-spin" /> : <span className={cn('h-1.5 w-1.5 rounded-full', statusConfig.dot)} />}
       {statusConfig.label}
     </Badge>
@@ -1083,25 +1172,196 @@ function SummarySection() {
   );
 }
 
+export const ACTION_VERB_CATEGORIES = [
+  {
+    name: 'Leadership',
+    nameZh: '领导力',
+    verbs: ['Led', 'Architected', 'Spearheaded', 'Directed', 'Orchestrated', 'Mentored'],
+  },
+  {
+    name: 'Impact',
+    nameZh: '成效与影响力',
+    verbs: ['Optimized', 'Accelerated', 'Scaled', 'Reduced', 'Increased', 'Streamlined'],
+  },
+  {
+    name: 'Development',
+    nameZh: '研发与工程',
+    verbs: ['Designed', 'Built', 'Automated', 'Refactored', 'Implemented', 'Deployed'],
+  },
+] as const;
+
+export const XYZ_FORMULA_TEMPLATE = 'Accomplished [X] as measured by [Y], by doing [Z]';
+export const XYZ_FORMULA_TEMPLATE_ZH = '通过做 [Z] 达成 [X]，以 [Y] 衡量';
+
+export function ActionVerbsHelper() {
+  const { t, locale } = useI18n();
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  const copyToClipboard = async (text: string, verb?: string) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+    } catch {
+      // ignore clipboard error in test/unsupported environments
+    }
+
+    if (verb) {
+      toast.success(`Copied '${verb}' to clipboard`);
+    } else {
+      toast.success(t('editor.copiedToClipboard'), {
+        description: text,
+      });
+    }
+  };
+
+  const formula = locale === 'zh-CN' ? XYZ_FORMULA_TEMPLATE_ZH : XYZ_FORMULA_TEMPLATE;
+
+  return (
+    <div className="mb-3 rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50/30 p-2.5 transition">
+      <button
+        type="button"
+        data-testid="action-verbs-toggle"
+        onClick={() => setIsOpen(open => !open)}
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between text-left text-xs font-semibold text-slate-800 transition hover:text-blue-600 focus:outline-none"
+      >
+        <span className="flex items-center gap-1.5">
+          <Sparkles className="h-4 w-4 text-amber-500" />
+          <span>{t('editor.actionVerbs')}</span>
+        </span>
+        <ChevronDown className={cn('h-4 w-4 text-slate-500 transition-transform duration-200', isOpen && 'rotate-180')} />
+      </button>
+
+      {isOpen && (
+        <div data-testid="action-verbs-content" className="mt-3 space-y-3 border-t border-slate-200/80 pt-2.5">
+          <div className="rounded-md border border-blue-200 bg-blue-50/70 p-2.5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-semibold text-blue-900">
+                  {t('editor.actionVerbsHint')}
+                </p>
+                <code className="block font-mono text-[11px] text-blue-700 select-all">
+                  {formula}
+                </code>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="copy-formula-btn"
+                onClick={() => copyToClipboard(formula)}
+                className="h-7 shrink-0 border-blue-300 bg-white px-2 text-xs text-blue-700 hover:bg-blue-50"
+              >
+                <Copy className="mr-1 h-3 w-3" />
+                {t('editor.copyTemplate')}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {ACTION_VERB_CATEGORIES.map(category => (
+              <div key={category.name} className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  {locale === 'zh-CN' ? category.nameZh : category.name}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {category.verbs.map(verb => (
+                    <button
+                      key={verb}
+                      type="button"
+                      data-testid={`verb-chip-${verb.toLowerCase()}`}
+                      onClick={() => copyToClipboard(verb, verb)}
+                      className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-700 shadow-xs transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 active:scale-95"
+                      title={t('common.copy')}
+                    >
+                      {verb}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExperienceSection() {
-  const { resume, addExperience, updateExperience, removeExperience } = useResumeGeneratorStore();
+  const { resume, addExperience, updateExperience, removeExperience, moveExperience } = useResumeGeneratorStore();
   const { t } = useI18n();
+  const [collapsedIds, setCollapsedIds] = React.useState<Set<string>>(new Set());
+
+  const allCollapsed = resume.experience.length > 0 && resume.experience.every(exp => collapsedIds.has(exp.id));
+
+  const toggleExpandAll = () => {
+    if (allCollapsed) {
+      setCollapsedIds(new Set());
+    } else {
+      setCollapsedIds(new Set(resume.experience.map(exp => exp.id)));
+    }
+  };
+
+  const toggleCollapse = (id: string) => {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   return (
     <ControlGroup
       title={t('sections.experience')}
       icon={Briefcase}
       count={resume.experience.length}
-      action={<AddButton onClick={addExperience} label={t('actions.add')} />}
+      action={
+        <div className="flex items-center gap-1.5">
+          {resume.experience.length > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900"
+              onClick={toggleExpandAll}
+            >
+              {allCollapsed ? t('common.expandAll') : t('common.collapseAll')}
+            </Button>
+          )}
+          <AddButton onClick={addExperience} label={t('actions.add')} />
+        </div>
+      }
     >
-      {resume.experience.map(experience => (
-        <ExperienceItem
-          key={experience.id}
-          experience={experience}
-          onUpdate={updates => updateExperience(experience.id, updates)}
-          onRemove={() => removeExperience(experience.id)}
-        />
-      ))}
+      <ActionVerbsHelper />
+      {resume.experience.map((experience, index) => {
+        const isCollapsed = collapsedIds.has(experience.id);
+        const summaryTitle = [experience.company, experience.role].filter(Boolean).join(' — ') || t('items.untitledRole');
+        const dateRangePill = experience.current
+          ? (experience.startDate ? `${experience.startDate} – ${t('document.present')}` : t('document.present'))
+          : [experience.startDate, experience.endDate].filter(Boolean).join(' – ');
+
+        return (
+          <ExperienceItem
+            key={experience.id}
+            experience={experience}
+            isCollapsed={isCollapsed}
+            summaryTitle={summaryTitle}
+            dateRangePill={dateRangePill}
+            onToggleCollapse={() => toggleCollapse(experience.id)}
+            onMoveUp={() => moveExperience(experience.id, 'up')}
+            onMoveDown={() => moveExperience(experience.id, 'down')}
+            canMoveUp={index > 0}
+            canMoveDown={index < resume.experience.length - 1}
+            onUpdate={updates => updateExperience(experience.id, updates)}
+            onRemove={() => removeExperience(experience.id)}
+          />
+        );
+      })}
       {resume.experience.length === 0 && <EmptyState label={t('empty.experience')} />}
     </ControlGroup>
   );
@@ -1109,17 +1369,45 @@ function ExperienceSection() {
 
 function ExperienceItem({
   experience,
+  isCollapsed,
+  summaryTitle,
+  dateRangePill,
+  onToggleCollapse,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onUpdate,
   onRemove,
 }: {
   experience: ResumeData['experience'][number];
+  isCollapsed?: boolean;
+  summaryTitle?: string;
+  dateRangePill?: string;
+  onToggleCollapse?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   onUpdate: (updates: Partial<ResumeData['experience'][number]>) => void;
   onRemove: () => void;
 }) {
   const { t } = useI18n();
 
   return (
-    <ItemShell title={experience.role || t('items.untitledRole')} subtitle={experience.company || t('items.company')} onRemove={onRemove}>
+    <ItemShell
+      title={experience.role || t('items.untitledRole')}
+      subtitle={experience.company || t('items.company')}
+      summaryTitle={summaryTitle}
+      pill={dateRangePill}
+      isCollapsed={isCollapsed}
+      onToggleCollapse={onToggleCollapse}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+      canMoveUp={canMoveUp}
+      canMoveDown={canMoveDown}
+      onRemove={onRemove}
+    >
       <div className="grid grid-cols-2 gap-2">
         <Field label={t('fields.role')}>
           <Input className={inputClass} value={experience.role} onChange={event => onUpdate({ role: event.target.value })} placeholder={t('placeholders.role')} />
@@ -1160,44 +1448,102 @@ function ExperienceItem({
 }
 
 function EducationSection() {
-  const { resume, addEducation, updateEducation, removeEducation } = useResumeGeneratorStore();
+  const { resume, addEducation, updateEducation, removeEducation, moveEducation } = useResumeGeneratorStore();
   const { t } = useI18n();
+  const [collapsedIds, setCollapsedIds] = React.useState<Set<string>>(new Set());
+
+  const allCollapsed = resume.education.length > 0 && resume.education.every(edu => collapsedIds.has(edu.id));
+
+  const toggleExpandAll = () => {
+    if (allCollapsed) {
+      setCollapsedIds(new Set());
+    } else {
+      setCollapsedIds(new Set(resume.education.map(edu => edu.id)));
+    }
+  };
+
+  const toggleCollapse = (id: string) => {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   return (
-    <ControlGroup title={t('sections.education')} icon={GraduationCap} count={resume.education.length} action={<AddButton onClick={addEducation} label={t('actions.add')} />}>
-      {resume.education.map(education => (
-        <ItemShell
-          key={education.id}
-          title={education.school || t('items.untitledSchool')}
-          subtitle={[education.degree, education.field].filter(Boolean).join(' · ') || t('items.degree')}
-          onRemove={() => removeEducation(education.id)}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={t('fields.school')}>
-              <Input className={inputClass} value={education.school} onChange={event => updateEducation(education.id, { school: event.target.value })} placeholder={t('placeholders.school')} />
-            </Field>
-            <Field label={t('fields.location')}>
-              <Input className={inputClass} value={education.location || ''} onChange={event => updateEducation(education.id, { location: event.target.value })} placeholder={t('placeholders.educationLocation')} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={t('fields.degree')}>
-              <Input className={inputClass} value={education.degree} onChange={event => updateEducation(education.id, { degree: event.target.value })} placeholder={t('placeholders.degree')} />
-            </Field>
-            <Field label={t('fields.field')}>
-              <Input className={inputClass} value={education.field || ''} onChange={event => updateEducation(education.id, { field: event.target.value })} placeholder={t('placeholders.field')} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={t('fields.start')}>
-              <Input className={inputClass} value={education.startDate || ''} onChange={event => updateEducation(education.id, { startDate: event.target.value })} placeholder={t('placeholders.educationStart')} />
-            </Field>
-            <Field label={t('fields.end')}>
-              <Input className={inputClass} value={education.endDate || ''} onChange={event => updateEducation(education.id, { endDate: event.target.value })} placeholder={t('placeholders.educationEnd')} />
-            </Field>
-          </div>
-        </ItemShell>
-      ))}
+    <ControlGroup
+      title={t('sections.education')}
+      icon={GraduationCap}
+      count={resume.education.length}
+      action={
+        <div className="flex items-center gap-1.5">
+          {resume.education.length > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900"
+              onClick={toggleExpandAll}
+            >
+              {allCollapsed ? t('common.expandAll') : t('common.collapseAll')}
+            </Button>
+          )}
+          <AddButton onClick={addEducation} label={t('actions.add')} />
+        </div>
+      }
+    >
+      {resume.education.map((education, index) => {
+        const isCollapsed = collapsedIds.has(education.id);
+        const degreeLabel = [education.degree, education.field].filter(Boolean).join(' · ');
+        const summaryTitle = [education.school, degreeLabel || education.degree].filter(Boolean).join(' — ') || t('items.untitledSchool');
+        const dateRangePill = [education.startDate, education.endDate].filter(Boolean).join(' – ');
+
+        return (
+          <ItemShell
+            key={education.id}
+            title={education.school || t('items.untitledSchool')}
+            subtitle={degreeLabel || t('items.degree')}
+            summaryTitle={summaryTitle}
+            pill={dateRangePill}
+            isCollapsed={isCollapsed}
+            onToggleCollapse={() => toggleCollapse(education.id)}
+            onMoveUp={() => moveEducation(education.id, 'up')}
+            onMoveDown={() => moveEducation(education.id, 'down')}
+            canMoveUp={index > 0}
+            canMoveDown={index < resume.education.length - 1}
+            onRemove={() => removeEducation(education.id)}
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <Field label={t('fields.school')}>
+                <Input className={inputClass} value={education.school} onChange={event => updateEducation(education.id, { school: event.target.value })} placeholder={t('placeholders.school')} />
+              </Field>
+              <Field label={t('fields.location')}>
+                <Input className={inputClass} value={education.location || ''} onChange={event => updateEducation(education.id, { location: event.target.value })} placeholder={t('placeholders.educationLocation')} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label={t('fields.degree')}>
+                <Input className={inputClass} value={education.degree} onChange={event => updateEducation(education.id, { degree: event.target.value })} placeholder={t('placeholders.degree')} />
+              </Field>
+              <Field label={t('fields.field')}>
+                <Input className={inputClass} value={education.field || ''} onChange={event => updateEducation(education.id, { field: event.target.value })} placeholder={t('placeholders.field')} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label={t('fields.start')}>
+                <Input className={inputClass} value={education.startDate || ''} onChange={event => updateEducation(education.id, { startDate: event.target.value })} placeholder={t('placeholders.educationStart')} />
+              </Field>
+              <Field label={t('fields.end')}>
+                <Input className={inputClass} value={education.endDate || ''} onChange={event => updateEducation(education.id, { endDate: event.target.value })} placeholder={t('placeholders.educationEnd')} />
+              </Field>
+            </div>
+          </ItemShell>
+        );
+      })}
       {resume.education.length === 0 && <EmptyState label={t('empty.education')} />}
     </ControlGroup>
   );
@@ -1230,27 +1576,88 @@ function SkillsSection() {
 }
 
 function ProjectsSection() {
-  const { resume, addProject, updateProject, removeProject } = useResumeGeneratorStore();
+  const { resume, addProject, updateProject, removeProject, moveProject } = useResumeGeneratorStore();
   const { t } = useI18n();
+  const [collapsedIds, setCollapsedIds] = React.useState<Set<string>>(new Set());
+
+  const allCollapsed = resume.projects.length > 0 && resume.projects.every(project => collapsedIds.has(project.id));
+
+  const toggleExpandAll = () => {
+    if (allCollapsed) {
+      setCollapsedIds(new Set());
+    } else {
+      setCollapsedIds(new Set(resume.projects.map(project => project.id)));
+    }
+  };
+
+  const toggleCollapse = (id: string) => {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   return (
-    <ControlGroup title={t('sections.projects')} icon={FolderGit2} count={resume.projects.length} action={<AddButton onClick={addProject} label={t('actions.add')} />}>
-      {resume.projects.map(project => (
-        <ItemShell key={project.id} title={project.name || t('items.untitledProject')} subtitle={project.url || t('items.project')} onRemove={() => removeProject(project.id)}>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={t('fields.name')}>
-              <Input className={inputClass} value={project.name} onChange={event => updateProject(project.id, { name: event.target.value })} placeholder={t('placeholders.projectName')} />
+    <ControlGroup
+      title={t('sections.projects')}
+      icon={FolderGit2}
+      count={resume.projects.length}
+      action={
+        <div className="flex items-center gap-1.5">
+          {resume.projects.length > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900"
+              onClick={toggleExpandAll}
+            >
+              {allCollapsed ? t('common.expandAll') : t('common.collapseAll')}
+            </Button>
+          )}
+          <AddButton onClick={addProject} label={t('actions.add')} />
+        </div>
+      }
+    >
+      {resume.projects.map((project, index) => {
+        const isCollapsed = collapsedIds.has(project.id);
+        const summaryTitle = project.name || t('items.untitledProject');
+
+        return (
+          <ItemShell
+            key={project.id}
+            title={project.name || t('items.untitledProject')}
+            subtitle={project.url || t('items.project')}
+            summaryTitle={summaryTitle}
+            pill={project.url || undefined}
+            isCollapsed={isCollapsed}
+            onToggleCollapse={() => toggleCollapse(project.id)}
+            onMoveUp={() => moveProject(project.id, 'up')}
+            onMoveDown={() => moveProject(project.id, 'down')}
+            canMoveUp={index > 0}
+            canMoveDown={index < resume.projects.length - 1}
+            onRemove={() => removeProject(project.id)}
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <Field label={t('fields.name')}>
+                <Input className={inputClass} value={project.name} onChange={event => updateProject(project.id, { name: event.target.value })} placeholder={t('placeholders.projectName')} />
+              </Field>
+              <Field label={t('fields.url')}>
+                <Input className={inputClass} value={project.url || ''} onChange={event => updateProject(project.id, { url: event.target.value })} placeholder={t('placeholders.projectUrl')} />
+              </Field>
+            </div>
+            <Field label={t('fields.description')}>
+              <Input className={inputClass} value={project.description} onChange={event => updateProject(project.id, { description: event.target.value })} placeholder={t('placeholders.projectDescription')} />
             </Field>
-            <Field label={t('fields.url')}>
-              <Input className={inputClass} value={project.url || ''} onChange={event => updateProject(project.id, { url: event.target.value })} placeholder={t('placeholders.projectUrl')} />
-            </Field>
-          </div>
-          <Field label={t('fields.description')}>
-            <Input className={inputClass} value={project.description} onChange={event => updateProject(project.id, { description: event.target.value })} placeholder={t('placeholders.projectDescription')} />
-          </Field>
-          <BulletList bullets={project.bullets} onChange={bullets => updateProject(project.id, { bullets })} placeholder={t('placeholders.projectBullet')} />
-        </ItemShell>
-      ))}
+            <BulletList bullets={project.bullets} onChange={bullets => updateProject(project.id, { bullets })} placeholder={t('placeholders.projectBullet')} />
+          </ItemShell>
+        );
+      })}
       {resume.projects.length === 0 && <EmptyState label={t('empty.projects')} />}
     </ControlGroup>
   );
@@ -1296,7 +1703,7 @@ export function DesignSection() {
   return (
     <>
       <ControlGroup title={t('sections.template')} icon={Layers} meta={t('meta.layoutSystem')} defaultOpen>
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {resumeTemplates.map(template => {
             const isActive = resolveTemplateId(resume.templateId) === template.id;
             return (
@@ -1346,19 +1753,89 @@ export function DesignSection() {
                 aria-label={t(preset.nameKey)}
                 aria-pressed={isActive}
                 onClick={() => updateDesign({ accentColor: preset.value })}
-                className={cn('flex h-9 items-center justify-center rounded-md border bg-slate-50 transition', isActive ? 'border-slate-400' : 'border-slate-200 hover:border-slate-300')}
+                className={cn('flex h-9 items-center justify-center rounded-md border bg-slate-50 transition', isActive ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border-slate-200 hover:border-slate-300')}
               >
-                <span className="h-5 w-5 rounded-full border border-slate-300" style={{ backgroundColor: preset.value }} />
+                <span className="h-5 w-5 rounded-full border border-slate-300 shadow-xs" style={{ backgroundColor: preset.value }} />
               </button>
             );
           })}
         </div>
+        <CustomColorPicker
+          value={design.accentColor}
+          onChange={accentColor => updateDesign({ accentColor })}
+        />
       </ControlGroup>
     </>
   );
 }
 
-function TemplateSelectionCard({
+export function CustomColorPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (hex: string) => void;
+}) {
+  const { t } = useI18n();
+  const [hexInput, setHexInput] = React.useState(value);
+
+  React.useEffect(() => {
+    setHexInput(value);
+  }, [value]);
+
+  const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.trim();
+    if (val && !val.startsWith('#')) {
+      val = `#${val}`;
+    }
+    setHexInput(val);
+    if (isValidHexColor(val)) {
+      onChange(val);
+    }
+  };
+
+  const handleColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setHexInput(val);
+    if (isValidHexColor(val)) {
+      onChange(val);
+    }
+  };
+
+  const safePickerColor = isValidHexColor(value) ? value : '#2563eb';
+
+  return (
+    <div className="mt-3.5 flex items-center gap-3 border-t border-slate-200/70 pt-3" data-testid="custom-color-picker">
+      <div className="flex items-center gap-2">
+        <Label htmlFor="custom-accent-color-picker" className="cursor-pointer text-xs font-medium text-slate-600">
+          {t('design.customColor')}
+        </Label>
+        <input
+          id="custom-accent-color-picker"
+          type="color"
+          value={safePickerColor}
+          onChange={handleColorPickerChange}
+          aria-label={t('design.customColor')}
+          className="h-8 w-8 cursor-pointer rounded-md border border-slate-300 bg-white p-0.5 shadow-sm transition hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div className="flex flex-1 items-center gap-1.5">
+        <Input
+          id="custom-accent-color-hex"
+          type="text"
+          value={hexInput}
+          onChange={handleHexChange}
+          placeholder="#2563eb"
+          maxLength={7}
+          aria-label={t('design.customColorHex')}
+          className="h-8 font-mono text-xs uppercase"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function TemplateSelectionCard({
   template,
   isActive,
   onSelect,
@@ -1375,44 +1852,48 @@ function TemplateSelectionCard({
       onClick={onSelect}
       aria-pressed={isActive}
       className={cn(
-        'rounded-xl border p-3 text-left transition',
-        isActive ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+        'group relative flex flex-col rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+        isActive
+          ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-500 shadow-sm'
+          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50/80',
       )}
     >
-      <div className="grid gap-3 md:grid-cols-[170px_1fr] md:items-start">
-        <div className={cn('overflow-hidden rounded-xl border bg-slate-100', isActive ? 'border-blue-200' : 'border-slate-200')}>
-          <div className="aspect-[4/3] bg-white">
-            <img
-              src={template.preview.imagePath}
-              alt={t(template.nameKey)}
-              className="h-full w-full object-cover object-top"
-              loading="lazy"
-            />
-          </div>
+      <div className={cn('mb-3 w-full overflow-hidden rounded-lg border bg-slate-100', isActive ? 'border-blue-200' : 'border-slate-200')}>
+        <div className="aspect-[4/3] bg-white">
+          <img
+            src={template.preview.imagePath}
+            alt={t(template.nameKey)}
+            className="h-full w-full object-cover object-top transition duration-200 group-hover:scale-[1.02]"
+            loading="lazy"
+          />
         </div>
+      </div>
 
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">{t(template.nameKey)}</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">{t(template.descriptionKey)}</p>
-            </div>
+      <div className="flex w-full flex-1 flex-col justify-between space-y-2.5">
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold leading-tight text-slate-900">{t(template.nameKey)}</p>
             {isActive ? (
-              <Badge variant="outline" className="border-blue-300 bg-blue-100 text-blue-700">
-                <Check className="mr-1 h-3 w-3" />
+              <Badge variant="outline" className="shrink-0 border-blue-300 bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700">
+                <Check className="mr-0.5 h-3 w-3" />
                 {t('common.current')}
               </Badge>
             ) : (
-              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-500">{t('common.select')}</Badge>
+              <Badge variant="outline" className="shrink-0 border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500">
+                {t('common.select')}
+              </Badge>
             )}
           </div>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{t(template.descriptionKey)}</p>
+        </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-600">
-              {t(template.preview.layoutLabelKey)}
-            </Badge>
+        <div className="space-y-1.5 pt-1">
+          <Badge variant="outline" className="border-blue-200 bg-blue-50/70 text-[10px] font-medium text-blue-700">
+            {t(template.preview.layoutLabelKey)}
+          </Badge>
+          <div className="flex flex-wrap gap-1">
             {template.preview.tagKeys.map(tagKey => (
-              <Badge key={`${template.id}-${tagKey}`} variant="outline" className="border-slate-200 bg-slate-50 text-slate-500">
+              <Badge key={`${template.id}-${tagKey}`} variant="outline" className="border-slate-200 bg-slate-50 text-[10px] text-slate-500">
                 {t(tagKey)}
               </Badge>
             ))}

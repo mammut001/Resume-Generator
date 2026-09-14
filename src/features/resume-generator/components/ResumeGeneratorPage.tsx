@@ -101,7 +101,7 @@ export function ResumeGeneratorPage() {
   }, [closeNarrowPreview, isNarrowPreviewOpen]);
 
   return (
-    <div className="flex h-dvh w-full flex-col overflow-hidden bg-[#f3f5f8] text-slate-900 lg:flex-row">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-[#f3f5f8] text-slate-900 dark:bg-slate-950 dark:text-slate-100 lg:flex-row">
       <main
         className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-none"
         aria-hidden={isNarrowPreviewOpen || undefined}
@@ -266,8 +266,8 @@ function getCoachCardPosition(rect: DOMRect, placement: CoachPlacement, existing
 }
 
 function getCoachCardCandidate(rect: DOMRect, placement: CoachPlacement): CoachMarkRect['card'] {
-  let left = rect.right + COACH_MARK_GAP;
-  let top = rect.top;
+  let left: number;
+  let top: number;
 
   if (placement === 'left') {
     left = rect.left - COACH_MARK_CARD_WIDTH - COACH_MARK_GAP;
@@ -280,6 +280,7 @@ function getCoachCardCandidate(rect: DOMRect, placement: CoachPlacement): CoachM
     top = rect.bottom + COACH_MARK_GAP;
   } else {
     left = rect.right + COACH_MARK_GAP;
+    top = rect.top;
   }
 
   return {

@@ -15,11 +15,23 @@ export const en = {
     select: 'Select',
     current: 'Current',
     checking: 'Checking',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    collapse: 'Collapse',
+    expand: 'Expand',
+    collapseAll: 'Collapse all',
+    expandAll: 'Expand all',
   },
   localeSwitcher: {
     label: 'Language',
     hint: 'Switches the app interface only. Your resume content stays as you wrote it.',
     loadSample: 'Load {{locale}} sample',
+  },
+  theme: {
+    label: 'Theme',
+    light: 'Light',
+    dark: 'Dark',
+    system: 'System',
   },
   tabs: {
     start: 'Start',
@@ -42,6 +54,10 @@ export const en = {
   },
   editor: {
     eyebrow: 'Resume Generator',
+    actionVerbs: 'Action Verbs & Bullets Helper',
+    actionVerbsHint: 'Use strong verbs and the XYZ formula: Accomplished [X], measured by [Y], by doing [Z].',
+    copyTemplate: 'Copy formula',
+    copiedToClipboard: 'Copied to clipboard',
   },
   documents: {
     label: 'Resumes',
@@ -312,6 +328,11 @@ export const en = {
     zoomOut: 'Zoom out',
     open: 'Inspect preview',
     close: 'Back to editor',
+    fitWidth: 'Fit width',
+    fitPage: 'Fit page',
+    resetZoom: 'Reset zoom (100%)',
+    pageBoundary: 'Page 1 / 2 boundary',
+    overflowWarning: 'Content exceeds 1 page by a small margin. Try switching density to compact or shortening bullet points.',
   },
   previewRail: {
     title: 'Preview details',
@@ -629,6 +650,10 @@ export const en = {
     applySelectedAsNewDocument: 'Apply selected changes',
     acceptedCount: '{{count}} accepted',
     rejectedCount: '{{count}} rejected',
+    matchScore: 'ATS Match Score',
+    acceptAll: 'Accept all',
+    rejectAll: 'Reject all',
+    copyKeyword: 'Copy keyword',
     acceptChange: 'Accept',
     rejectChange: 'Reject',
     selectedDraftPreview: 'Selected Draft Preview',
@@ -734,6 +759,8 @@ export const en = {
       rose: 'Rose',
       graphite: 'Graphite',
     },
+    customColor: 'Custom color',
+    customColorHex: 'Hex color',
   },
   templates: {
     basicResume: {
