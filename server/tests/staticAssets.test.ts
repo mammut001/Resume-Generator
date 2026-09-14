@@ -53,6 +53,20 @@ describe('static asset caching', () => {
     expect(sitemapResponse.headers.get('content-type')).toBe('application/xml; charset=utf-8');
   });
 
+  it('returns 400 instead of crashing on invalid percent-encoding', async () => {
+    await startServer();
+
+    const response = await new Promise<Response>((resolve, reject) => {
+      const request = fetch(`${baseUrl}/%E0%A4%A`);
+      request.then(resolve, reject);
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: 'BAD_REQUEST' },
+    });
+  });
+
   async function startServer() {
     tempDirectory = mkdtempSync(join(tmpdir(), 'resume-static-assets-'));
     mkdirSync(join(tempDirectory, 'assets'), { recursive: true });

@@ -85,7 +85,18 @@ export function createApp(options: RenderServerOptions = {}): RenderApp {
     }
 
     if (staticRoot && (req.method === 'GET' || req.method === 'HEAD')) {
-      const decodedPathname = decodeURIComponent(url.pathname);
+      let decodedPathname: string;
+      try {
+        decodedPathname = decodeURIComponent(url.pathname);
+      } catch {
+        sendJsonError(res, 400, {
+          error: {
+            code: 'BAD_REQUEST',
+            message: 'The request URL contains invalid percent-encoding.',
+          },
+        });
+        return;
+      }
       const requestedPath = normalize(decodedPathname).replace(/^(\.\.(\/|\\|$))+/, '');
       const candidatePath = resolve(join(staticRoot, requestedPath));
       const relativePath = relative(staticRoot, candidatePath);

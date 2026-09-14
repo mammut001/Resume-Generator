@@ -16,7 +16,21 @@ export function withObservability(
   if (!options.config.enabled) return handler;
 
   return async function observedHandler(req: IncomingMessage, res: ServerResponse) {
-    const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    let url: URL;
+    try {
+      url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    } catch {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.end(JSON.stringify({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'The request URL or Host header is invalid.',
+        },
+      }));
+      return;
+    }
     const routeId = resolveRouteId(url.pathname);
     const requestId = createRequestId();
     const requestStartedAt = process.hrtime.bigint();
