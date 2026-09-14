@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Briefcase,
   Check,
+  Eye,
   FileText,
   FileUp,
   FolderGit2,
@@ -78,7 +79,13 @@ function classifyIntakeFailureReason(error: unknown): IntakeFailureReason {
   return 'unknown';
 }
 
-export function ResumeEditorPanel() {
+export function ResumeEditorPanel({
+  onInspectPreview,
+  isPreviewOpen = false,
+}: {
+  onInspectPreview?: () => void;
+  isPreviewOpen?: boolean;
+} = {}) {
   const { resume, documents, renderStatus, hasDismissedOnboarding, dismissOnboarding } = useResumeGeneratorStore();
   const { locale, t } = useI18n();
   const showFirstRunOnboarding = shouldShowFirstRunOnboarding({ documents, hasDismissedOnboarding }, locale);
@@ -168,6 +175,21 @@ export function ResumeEditorPanel() {
           </TabsContent>
         </ScrollArea>
       </Tabs>
+      {onInspectPreview ? (
+        <div className="border-t border-slate-200/80 bg-white px-5 py-3 lg:hidden">
+          <Button
+            type="button"
+            className={cn(primaryButtonClass, 'h-10 w-full')}
+            onClick={onInspectPreview}
+            aria-expanded={isPreviewOpen}
+            aria-controls="resume-preview-surface"
+            data-preview-control="open"
+          >
+            <Eye className="h-4 w-4" />
+            {t('preview.open')}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,11 @@
+import { spawnSync } from 'node:child_process';
 import { AddressInfo } from 'node:net';
 import { createServer, Server } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
+
+const typstBin = process.env.TYPST_BIN || 'typst';
+const typstAvailable = spawnSync(typstBin, ['--version'], { encoding: 'utf8' }).status === 0;
 
 describe('render typst rate limiting', () => {
   let server: Server | undefined;
@@ -12,7 +16,7 @@ describe('render typst rate limiting', () => {
     server = undefined;
   });
 
-  it('returns 429 after exceeding the per-minute render limit', async () => {
+  it.skipIf(!typstAvailable)('returns 429 after exceeding the per-minute render limit', async () => {
     server = createServer(createApp({ renderRateLimitPerMinute: 1 }));
     await new Promise<void>(resolve => server?.listen(0, '127.0.0.1', resolve));
     const address = server!.address() as AddressInfo;

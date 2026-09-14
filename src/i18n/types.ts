@@ -337,6 +337,8 @@ export type TranslationSchema = {
     startEditing: string;
     zoomIn: string;
     zoomOut: string;
+    open: string;
+    close: string;
   };
   previewRail: {
     title: string;

@@ -310,6 +310,8 @@ export const en = {
     startEditing: 'Start editing to see preview',
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
+    open: 'Inspect preview',
+    close: 'Back to editor',
   },
   previewRail: {
     title: 'Preview details',

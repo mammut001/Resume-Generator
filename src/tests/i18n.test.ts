@@ -76,6 +76,10 @@ describe('i18n', () => {
 
     expect(translate('en', 'tabs.start')).toBe('Start');
     expect(translate('zh-CN', 'sections.experience')).toBe('工作经历');
+    expect(translate('en', 'preview.open')).toBe('Inspect preview');
+    expect(translate('zh-CN', 'preview.open')).toBe('查看预览');
+    expect(translate('en', 'preview.close')).toBe('Back to editor');
+    expect(translate('zh-CN', 'preview.close')).toBe('返回编辑');
   });
 
   it('interpolates translation params', async () => {

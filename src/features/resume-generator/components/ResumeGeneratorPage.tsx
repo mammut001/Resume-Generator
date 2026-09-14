@@ -29,6 +29,7 @@ type CoachMarkRect = {
 export function ResumeGeneratorPage() {
   const { t } = useI18n();
   const [isCoachMarksOpen, setCoachMarksOpen] = useState(false);
+  const [isNarrowPreviewOpen, setNarrowPreviewOpen] = useState(false);
 
   useEffect(() => {
     trackAnalyticsEvent('page_viewed', {
@@ -38,7 +39,7 @@ export function ResumeGeneratorPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     if (!window.matchMedia('(min-width: 1024px)').matches) return;
     if (window.localStorage.getItem(COACH_MARKS_STORAGE_KEY) === '1') return;
 
@@ -65,13 +66,63 @@ export function ResumeGeneratorPage() {
     trackAnalyticsEvent('onboarding_dismissed', { surface: 'coach_marks' });
   }, []);
 
+  const openNarrowPreview = useCallback(() => {
+    setNarrowPreviewOpen(true);
+  }, []);
+
+  const closeNarrowPreview = useCallback(() => {
+    setNarrowPreviewOpen(false);
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>('[data-preview-control="open"]')?.focus();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(min-width: 1024px)');
+    const closeWhenWide = () => {
+      if (media.matches) setNarrowPreviewOpen(false);
+    };
+    closeWhenWide();
+    media.addEventListener('change', closeWhenWide);
+    return () => media.removeEventListener('change', closeWhenWide);
+  }, []);
+
+  useEffect(() => {
+    if (!isNarrowPreviewOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeNarrowPreview();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>('[data-preview-control="close"]')?.focus();
+    });
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [closeNarrowPreview, isNarrowPreviewOpen]);
+
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-[#f3f5f8] text-slate-900 lg:flex-row">
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-none">
-        <ResumeEditorPanel />
+      <main
+        className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-none"
+        aria-hidden={isNarrowPreviewOpen || undefined}
+      >
+        <ResumeEditorPanel onInspectPreview={openNarrowPreview} isPreviewOpen={isNarrowPreviewOpen} />
       </main>
-      <aside aria-label={t('a11y.previewPanel')} className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <ResumePreviewPanel onOpenCoachMarks={openCoachMarks} />
+      <aside
+        id="resume-preview-surface"
+        aria-label={t('a11y.previewPanel')}
+        data-preview-surface={isNarrowPreviewOpen ? 'overlay' : 'docked'}
+        role={isNarrowPreviewOpen ? 'dialog' : undefined}
+        aria-modal={isNarrowPreviewOpen ? true : undefined}
+        className={cn(
+          'min-h-0 min-w-0 flex-1 flex-col',
+          isNarrowPreviewOpen ? 'fixed inset-0 z-40 flex lg:static lg:z-auto' : 'hidden lg:flex',
+        )}
+      >
+        <ResumePreviewPanel
+          onOpenCoachMarks={openCoachMarks}
+          onCloseNarrowPreview={isNarrowPreviewOpen ? closeNarrowPreview : undefined}
+        />
       </aside>
       <CoachMarksLayer isOpen={isCoachMarksOpen} onDismiss={dismissCoachMarks} />
       <ToasterComponent />
@@ -109,7 +160,7 @@ function CoachMarksLayer({ isOpen, onDismiss }: { isOpen: boolean; onDismiss: ()
   const [marks, setMarks] = useState<CoachMarkRect[]>([]);
 
   useEffect(() => {
-    if (!isOpen || typeof window === 'undefined') {
+    if (!isOpen || typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
       setMarks([]);
       return;
     }

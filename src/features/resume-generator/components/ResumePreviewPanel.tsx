@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { AlertCircle, CheckCircle2, ClipboardList, Copy, Download, FileDown, FileText, HelpCircle, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ClipboardList, Copy, Download, FileDown, FileText, HelpCircle, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { TranslationKey } from '@/i18n';
+import { cn } from '@/lib/utils';
 import type { ResumeData } from '@/types/resume';
 import { getExportReadiness, type ExportReadinessReport, type ExportReadinessSection } from '../lib/exportReadiness';
 import { formatError } from '../lib/formatError';
@@ -23,7 +24,13 @@ const previewHeightPx = 11 * 96;
 const previewRailBreakpointPx = 1040;
 const previewRailWidthBudgetPx = 260;
 
-export function ResumePreviewPanel({ onOpenCoachMarks }: { onOpenCoachMarks?: () => void }) {
+export function ResumePreviewPanel({
+  onOpenCoachMarks,
+  onCloseNarrowPreview,
+}: {
+  onOpenCoachMarks?: () => void;
+  onCloseNarrowPreview?: () => void;
+}) {
   const {
     activeDocumentId,
     resume,
@@ -104,7 +111,7 @@ export function ResumePreviewPanel({ onOpenCoachMarks }: { onOpenCoachMarks?: ()
       const railBudget = workspace.clientWidth >= previewRailBreakpointPx ? previewRailWidthBudgetPx : 0;
       const availableWidth = workspace.clientWidth - 96 - railBudget;
       const fitZoom = Math.floor((availableWidth / previewWidthPx) * 100);
-      const nextZoom = Math.min(100, Math.max(70, Math.floor(fitZoom / 5) * 5));
+      const nextZoom = Math.min(100, Math.max(35, Math.floor(fitZoom / 5) * 5));
       setZoom(nextZoom);
     };
 
@@ -120,14 +127,27 @@ export function ResumePreviewPanel({ onOpenCoachMarks }: { onOpenCoachMarks?: ()
   };
   const handleZoomOut = () => {
     hasManualZoomRef.current = true;
-    setZoom(currentZoom => Math.max(currentZoom - 25, 50));
+    setZoom(currentZoom => Math.max(currentZoom - 25, 35));
   };
   const zoomScale = zoom / 100;
 
   return (
-    <div className="hidden min-h-0 min-w-0 flex-1 flex-col bg-[#eef2f6] lg:flex">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#eef2f6]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-white/95 px-5 py-3 text-slate-900 shadow-sm shadow-slate-200/60">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {onCloseNarrowPreview ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className={toolbarButtonClass}
+              onClick={onCloseNarrowPreview}
+              aria-label={t('preview.close')}
+              data-preview-control="close"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {t('preview.close')}
+            </Button>
+          ) : null}
           <Badge variant="outline" className="rounded border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700">
             {renderStatus === 'rendering' ? (
               <>
@@ -158,7 +178,7 @@ export function ResumePreviewPanel({ onOpenCoachMarks }: { onOpenCoachMarks?: ()
             <Button
               size="sm"
               variant="outline"
-              className={toolbarButtonClass}
+              className={cn(toolbarButtonClass, 'hidden lg:inline-flex')}
               onClick={onOpenCoachMarks}
               aria-label={t('coachMarks.reopen')}
               title={t('coachMarks.reopen')}
@@ -171,7 +191,7 @@ export function ResumePreviewPanel({ onOpenCoachMarks }: { onOpenCoachMarks?: ()
             variant="outline"
             className={toolbarButtonClass}
             onClick={handleZoomOut}
-            disabled={zoom <= 50}
+            disabled={zoom <= 35}
             aria-label={t('preview.zoomOut')}
             title={t('preview.zoomOut')}
           >
@@ -192,11 +212,11 @@ export function ResumePreviewPanel({ onOpenCoachMarks }: { onOpenCoachMarks?: ()
             <ZoomIn className="h-4 w-4" />
           </Button>
           <span className="mx-1 h-6 w-px bg-slate-200" />
-          <Button size="sm" variant="outline" className={toolbarButtonClass} onClick={handleCopyTypst}>
+          <Button size="sm" variant="outline" className={cn(toolbarButtonClass, 'hidden sm:inline-flex')} onClick={handleCopyTypst}>
             <Copy className="mr-1 h-4 w-4 shrink-0" />
             {t('common.copy')}
           </Button>
-          <Button size="sm" variant="outline" className={toolbarButtonClass} onClick={handleDownloadTypst}>
+          <Button size="sm" variant="outline" className={cn(toolbarButtonClass, 'hidden sm:inline-flex')} onClick={handleDownloadTypst}>
             <Download className="mr-1 h-4 w-4 shrink-0" />
             {t('actions.downloadTypst')}
           </Button>

@@ -310,6 +310,8 @@ export const zhCN = {
     startEditing: '开始编辑后即可查看预览',
     zoomIn: '放大',
     zoomOut: '缩小',
+    open: '查看预览',
+    close: '返回编辑',
   },
   previewRail: {
     title: '预览信息',
