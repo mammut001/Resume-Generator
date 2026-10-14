@@ -1,5 +1,5 @@
 import { validateResumeIntakeResult } from './resumeSchema.js';
-import { ResumeIntakeResult, ResumeIntakeWarning } from './types.js';
+import { ResumeIntakeResult } from './types.js';
 import { buildMissingFieldWarnings, normalizeIntakeWarnings, reconcileWarningsWithResume } from './warnings.js';
 
 export type ModelGatewayConfig = {
@@ -212,11 +212,17 @@ function buildSystemPrompt(): string {
     'Rules:',
     '- If a field is unknown, use an empty string or an empty array rather than guessing.',
     '- If the full name is unknown, use "Imported Candidate".',
-    '- Sparse input is valid: return a useful partial resume instead of forcing completeness.',
-    '- Empty experience, education, and projects arrays are acceptable when the source does not provide those facts.',
+    '- Sparse prose is valid: return a useful partial resume instead of inventing facts.',
+    '- Empty experience, education, and projects arrays are acceptable only when the source does not mention those facts.',
+    '- When the source is a structured resume, keep every job, school, project, and bullet as its own entry. Never merge roles or join bullets with semicolons.',
+    '- Section headers may be English or Chinese, including 个人总结, 工作经历, 实习经历, 教育背景, 项目经历, and 技能.',
+    '- Keep the summary in the candidate\'s own words and voice. Do not rewrite it in the third person, and do not start it with the candidate\'s name unless the source summary does.',
+    '- Use skill categories from the source. Never use the label "Detected Skills".',
+    '- A website must appear in the source as its own link. Never use the domain of an email address as a website.',
+    '- For projects, name is only the title. Put bullet lines only in bullets. Do not copy a bullet into both description and bullets, and do not join the title and a bullet with a comma.',
     '- Missing sections should produce warnings, not hallucinated employers, schools, degrees, dates, or metrics.',
     '- For sparse frontend/web-development input, infer a reasonable headline such as "Frontend Engineer" only when supported by the source.',
-    '- For incomplete input, write a short summary grounded only in stated skills, target roles, and work themes.',
+    '- For incomplete prose, write a short summary grounded only in stated skills, target roles, and work themes. Do not do this when the source already has a summary.',
     '- Use templateId "clean-professional".',
     '- Use design typography "classic", density "comfortable", pageSize "letter", accentColor "#2563eb".',
     '- Warnings should explain missing or uncertain fields.',
@@ -367,21 +373,35 @@ function normalizeModelPayload(payload: unknown): ResumeIntakeResult {
 function normalizeSkills(value: unknown[]): ResumeIntakeResult['resume']['skills'] {
   if (value.length === 0) return [];
   if (value.every(item => typeof item === 'string')) {
+    const items = normalizeStringArray(value);
     return [{
       id: 'skill-1',
-      category: 'Detected Skills',
-      items: normalizeStringArray(value),
+      category: skillFallbackCategory(items),
+      items,
     }];
   }
 
   return value
     .filter(item => item && typeof item === 'object')
-    .map((item: any, index) => ({
-      id: item.id || `skill-${index + 1}`,
-      category: item.category || 'Skills',
-      items: normalizeStringArray(item.items),
-    }))
+    .map((item: any, index) => {
+      const items = normalizeStringArray(item.items);
+      return {
+        id: item.id || `skill-${index + 1}`,
+        category: sanitizeSkillCategory(item.category, items),
+        items,
+      };
+    })
     .filter(group => group.items.length > 0);
+}
+
+function sanitizeSkillCategory(category: unknown, items: string[]): string {
+  const trimmed = typeof category === 'string' ? category.trim() : '';
+  if (!trimmed || /^detected skills$/i.test(trimmed)) return skillFallbackCategory(items);
+  return trimmed;
+}
+
+function skillFallbackCategory(items: string[]): string {
+  return items.some(item => /[\u4e00-\u9fff]/.test(item)) ? '技能' : 'Skills';
 }
 
 function normalizeStringArray(value: unknown): string[] {

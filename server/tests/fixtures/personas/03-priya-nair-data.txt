@@ -1,0 +1,37 @@
+Priya Nair
+Data Analyst
+priya.nair@email.com | +1 (312) 555-0173 | Chicago, IL
+linkedin.com/in/priyanair | github.com/priyanair
+
+SUMMARY
+Data analyst transitioning from operations. Experienced building dashboards, cleaning messy datasets, and translating metrics into decisions for ops and finance stakeholders.
+
+EXPERIENCE
+Data Analyst — Shopify (Remote)
+Sep 2024 – Present
+- Built Looker dashboards tracking merchant churn drivers for a 6-person ops team
+- Automated weekly CSV reporting with Python, saving ~8 hours of manual work per week
+- Designed an experiment readout that informed a pricing pilot across 3 markets
+
+Operations Specialist — Instacart (Chicago, IL)
+Jan 2022 – Aug 2024
+- Analyzed delivery SLA breaches; recommended staffing changes that cut late deliveries 11%
+- Partnered with engineering to define data quality checks on order event logs
+- Trained 15 new hires on reporting workflows
+
+Customer Success Associate — Zendesk (Chicago, IL)
+Jun 2020 – Dec 2021
+- Managed a book of 60 mid-market accounts; documented churn risk signals in CRM
+
+EDUCATION
+Google Data Analytics Certificate — Coursera
+2024
+B.S. Business Administration — University of Illinois Chicago
+2016 – 2020
+
+PROJECTS
+Retail Demand Forecast Notebook
+- Python + pandas notebook forecasting weekly SKU demand with MAPE under 18%
+
+SKILLS
+SQL, Python, Looker, Tableau, Excel, A/B analysis, stakeholder communication

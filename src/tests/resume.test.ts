@@ -52,6 +52,30 @@ describe('resumeToTypst', () => {
     expect(result).toContain('Summary');
   });
 
+  it('renders project titles before distinct descriptions and does not repeat a bullet', () => {
+    const resume = {
+      ...defaultResume,
+      projects: [
+        {
+          id: 'proj-zh',
+          name: '校园二手交易小程序运营',
+          description: '负责冷启动增长，3 个月注册用户破 5000',
+          bullets: ['负责冷启动增长，3 个月注册用户破 5000'],
+        },
+        defaultResume.projects[0],
+      ],
+    };
+
+    const result = renderResumeToTypst(resume, 'clean-professional', 'zh-CN');
+
+    expect(result).toContain('校园二手交易小程序运营');
+    expect(result).not.toContain('负责冷启动增长，3 个月注册用户破 5000, 校园二手交易小程序运营');
+    expect(result.split('负责冷启动增长，3 个月注册用户破 5000').length - 1).toBe(1);
+    expect(result).toContain('OpenSource UI Kit');
+    expect(result).toContain('A customizable, accessible React component library');
+    expect(result).toContain('role: ""');
+  });
+
   it('works with all visible templates', () => {
     for (const template of resumeTemplates) {
       const result = renderResumeToTypst(defaultResume, template.id);

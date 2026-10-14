@@ -1,0 +1,31 @@
+Sofia Martinez
+Product Designer
+sofia.martinez@email.com | +1 (323) 555-0166 | Los Angeles, CA
+linkedin.com/in/sofiamartinez | sofiam.design | dribbble.com/sofiam
+
+SUMMARY
+Product designer with 6 years of experience across consumer mobile and B2B web. Strong in research-backed interaction design, design systems, and partnering closely with engineering.
+
+EXPERIENCE
+Senior Product Designer — Spotify (Los Angeles, CA)
+Feb 2023 – Present
+- Redesigned playlist collaboration flows; increased shared-playlist creations by 22%
+- Established a component contribution model used by 18 designers across two platforms
+- Ran generative research with 24 listeners to define accessibility improvements
+
+Product Designer — Airbnb (San Francisco, CA)
+Aug 2020 – Jan 2023
+- Shipped host onboarding improvements that raised listing completion rates by 9%
+- Collaborated with content design on empty states and error messaging patterns
+- Facilitated weekly design critiques for a 10-person product trio
+
+UI/UX Designer — Agency Indie Lab (Los Angeles, CA)
+Jun 2018 – Jul 2020
+- Delivered brand and product UI for 12 startup clients from wireframes to handoff
+
+EDUCATION
+B.F.A. Graphic Design — ArtCenter College of Design
+2014 – 2018
+
+SKILLS
+Figma, prototyping, design systems, user research, accessibility (WCAG), FigJam, storytelling

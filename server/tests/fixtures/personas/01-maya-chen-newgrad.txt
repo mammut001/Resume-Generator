@@ -1,0 +1,33 @@
+Maya Chen
+Software Engineer
+maya.chen@email.com | +1 (415) 555-0142 | San Francisco, CA
+linkedin.com/in/mayachen | github.com/mayachen
+
+SUMMARY
+Recent Computer Science graduate seeking a software engineering role. Built full-stack projects with React, TypeScript, and Node.js. Strong foundation in data structures, algorithms, and collaborative product delivery.
+
+EXPERIENCE
+Software Engineering Intern — Stripe (San Francisco, CA)
+Jun 2025 – Aug 2025
+- Shipped a dashboard feature used by 2,000+ merchants to track disputed payments
+- Reduced API latency for a billing endpoint by 28% through query optimization
+- Wrote unit and integration tests covering the new payment-status workflow
+
+Undergraduate Researcher — UC Berkeley EECS
+Jan 2024 – May 2025
+- Implemented a Python pipeline to clean and analyze educational clickstream data
+- Presented findings on engagement patterns to a 12-person research group
+
+EDUCATION
+B.S. Computer Science — University of California, Berkeley
+Aug 2022 – May 2026
+GPA: 3.7/4.0 | Coursework: Algorithms, Operating Systems, Databases, Machine Learning
+
+PROJECTS
+CampusConnect
+- React + FastAPI web app matching students to campus clubs; 800+ signups in pilot
+- Added OAuth login and role-based access for club admins
+
+SKILLS
+Languages: TypeScript, Python, Java, SQL
+Tools: React, Node.js, PostgreSQL, Git, Docker

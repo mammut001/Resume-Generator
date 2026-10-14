@@ -1,0 +1,33 @@
+Wei Zhang
+Senior Backend Engineer
+wei.zhang@email.com | +1 (206) 555-0110 | Seattle, WA
+linkedin.com/in/weizhang | github.com/weizhang-dev
+
+SUMMARY
+Senior backend engineer with 8+ years building distributed systems and payment infrastructure. Focused on reliability, observability, and pragmatic system design at scale.
+
+EXPERIENCE
+Senior Software Engineer — Amazon (Seattle, WA)
+Apr 2021 – Present
+- Owned a payments reconciliation service processing 40M+ events/day with 99.99% availability
+- Led migration from monolith batch jobs to event-driven workers, cutting end-to-end lag 65%
+- Mentored 4 engineers; ran design reviews and on-call rotations for the payments domain
+
+Software Engineer — Alibaba Cloud (Hangzhou, China)
+Jul 2017 – Mar 2021
+- Built multi-tenant metering APIs serving 1,000+ enterprise customers
+- Improved p99 latency of a billing query path from 850ms to 120ms
+- Introduced structured logging and SLO dashboards adopted by three neighboring teams
+
+EDUCATION
+M.S. Computer Science — Zhejiang University
+2015 – 2017
+B.Eng. Software Engineering — Huazhong University of Science and Technology
+2011 – 2015
+
+PROJECTS
+OpenTelemetry Sampler Plugin
+- Go library for adaptive sampling; open-sourced and used in two internal services
+
+SKILLS
+Go, Java, Kafka, PostgreSQL, Redis, Kubernetes, AWS, distributed systems, observability

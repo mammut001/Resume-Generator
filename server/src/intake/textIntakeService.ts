@@ -1,6 +1,8 @@
 import { ResumeData, ResumeIntakeResult, ResumeIntakeWarning } from './types.js';
 import { validateResumeIntakeResult } from './resumeSchema.js';
 import { buildResumeDraftWithModel, hasModelGatewayConfig, ModelGatewayConfig, ModelGatewayError } from './modelGateway.js';
+import { sanitizeIntakeResume, websiteIsInSource } from './resumeFidelity.js';
+import { parseStructuredResume } from './structuredResume.js';
 import { buildMissingFieldWarnings, normalizeIntakeWarnings, reconcileWarningsWithResume } from './warnings.js';
 
 const defaultDesign: ResumeData['design'] = {
@@ -59,12 +61,26 @@ async function buildResumeDraftFromSourceText(
   sourceKind: IntakeSourceKind,
   modelGatewayConfig: ModelGatewayConfig = {},
 ): Promise<ResumeIntakeResult> {
-  const text = normalizeWhitespace(input);
+  const text = normalizeSourceText(input);
+  const structured = tryStructuredResume(text);
+  if (structured) {
+    return buildStructuredResumeDraft(text, sourceKind, structured, hasModelGatewayConfig(modelGatewayConfig) ? null : {
+      code: 'MODEL_GATEWAY_NOT_CONFIGURED',
+      message: 'This draft used the local intake parser. Configure a model gateway before presenting it as AI-generated output.',
+    });
+  }
+
   if (hasModelGatewayConfig(modelGatewayConfig)) {
     try {
       const modelResult = await buildResumeDraftWithModel(text, modelGatewayConfig);
+      const resume = sanitizeIntakeResume(modelResult.resume, text);
       return validateResumeIntakeResult({
         ...modelResult,
+        resume,
+        warnings: reconcileWarningsWithResume(resume, [
+          ...modelResult.warnings,
+          ...buildMissingFieldWarnings(resume, { ...modelResult, resume }),
+        ]),
         source: {
           kind: sourceKind,
           extractedText: text,
@@ -81,7 +97,79 @@ async function buildResumeDraftFromSourceText(
   });
 }
 
+function tryStructuredResume(text: string): ResumeData | null {
+  try {
+    return parseStructuredResume(text);
+  } catch {
+    return null;
+  }
+}
+
+function buildStructuredResumeDraft(
+  text: string,
+  sourceKind: IntakeSourceKind,
+  resume: ResumeData,
+  modelWarning: ResumeIntakeWarning | null,
+): ResumeIntakeResult {
+  const warnings: ResumeIntakeWarning[] = [];
+  if (modelWarning) warnings.push(modelWarning);
+
+  const undated = resume.experience.filter(entry => !entry.startDate && !entry.endDate).map(entry => entry.company);
+  if (undated.length > 0) {
+    warnings.push({
+      code: 'UNCERTAIN_DATES',
+      message: `Dates were not clearly detected for ${undated.join(', ')}.`,
+      fieldPath: 'experience',
+    });
+  }
+
+  const sections = {
+    personal: resume.personal.fullName === 'Imported Candidate' ? 0.45 : 0.92,
+    summary: resume.summary ? 0.9 : 0.2,
+    experience: resume.experience.length > 0 ? 0.93 : 0.2,
+    education: resume.education.length > 0 ? 0.9 : 0.25,
+    skills: resume.skills.length > 0 ? 0.9 : 0.25,
+    projects: resume.projects.length > 0 ? 0.9 : 0.4,
+  };
+
+  try {
+    const result = validateResumeIntakeResult({
+      resume,
+      confidence: {
+        overall: roundConfidence(Object.values(sections).reduce((sum, value) => sum + value, 0) / Object.values(sections).length),
+        sections,
+      },
+      warnings: normalizeIntakeWarnings(warnings),
+      source: {
+        kind: sourceKind,
+        extractedText: text,
+      },
+    });
+
+    return validateResumeIntakeResult({
+      ...result,
+      warnings: reconcileWarningsWithResume(result.resume, [
+        ...result.warnings,
+        ...buildMissingFieldWarnings(result.resume, result),
+      ]),
+    });
+  } catch {
+    return buildProseResumeDraft(normalizeWhitespace(text), sourceKind, modelWarning || {
+      code: 'MODEL_GATEWAY_NOT_CONFIGURED',
+      message: 'This draft used the local intake parser. Configure a model gateway before presenting it as AI-generated output.',
+    });
+  }
+}
+
 function buildLocalResumeDraft(text: string, sourceKind: IntakeSourceKind, modelWarning: ResumeIntakeWarning): ResumeIntakeResult {
+  const structured = tryStructuredResume(text);
+  if (structured) return buildStructuredResumeDraft(text, sourceKind, structured, modelWarning);
+
+  const collapsed = normalizeWhitespace(text);
+  return buildProseResumeDraft(collapsed, sourceKind, modelWarning);
+}
+
+function buildProseResumeDraft(text: string, sourceKind: IntakeSourceKind, modelWarning: ResumeIntakeWarning): ResumeIntakeResult {
   const warnings: ResumeIntakeWarning[] = [];
   const headline = detectHeadline(text);
   const personal = detectPersonal(text, headline, warnings);
@@ -150,7 +238,7 @@ function detectPersonal(text: string, headline: string, warnings: ResumeIntakeWa
   const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() || '';
   const linkedin = text.match(/linkedin\.com\/[^\s,;.)]+/i)?.[0];
   const github = text.match(/github\.com\/[^\s,;.)]+/i)?.[0];
-  const website = text.match(/(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:dev|com|io|me)(?:\/[^\s,;.)]*)?/i)?.[0];
+  const website = detectWebsite(text, email);
   const name = detectName(text);
 
   if (name === 'Imported Candidate') {
@@ -267,10 +355,23 @@ function detectSkills(text: string, warnings: ResumeIntakeWarning[]): ResumeData
   return [
     {
       id: 'skill-1',
-      category: 'Detected Skills',
+      category: /[\u4e00-\u9fff]/.test(text) ? '技能' : 'Skills',
       items: Array.from(new Set(detected)),
     },
   ];
+}
+
+function detectWebsite(text: string, email: string): string | undefined {
+  const withoutEmails = text.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ');
+  const withoutProfiles = withoutEmails
+    .replace(/linkedin\.com\/[^\s,;.)]+/gi, ' ')
+    .replace(/github\.com\/[^\s,;.)]+/gi, ' ');
+  const match = withoutProfiles.match(/(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:dev|com|io|me|design)(?:\/[^\s,;.)]*)?/i)?.[0];
+  if (!match) return undefined;
+  const normalized = match.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  if (!websiteIsInSource(normalized, text)) return undefined;
+  if (email && normalized.toLowerCase() === email.split('@')[1]?.toLowerCase()) return undefined;
+  return normalized;
 }
 
 function buildSummary(text: string, headline: string, experience: ResumeData['experience'], skills: ResumeData['skills']): string {
@@ -308,6 +409,18 @@ function normalizeField(field: string): string {
 function sentenceCase(value: string): string {
   const trimmed = value.trim().replace(/[.]+$/, '');
   return trimmed ? `${trimmed[0].toUpperCase()}${trimmed.slice(1)}.` : trimmed;
+}
+
+function normalizeSourceText(value: string): string {
+  return value
+    .replaceAll('\u0000', ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n--\s*\d+\s+of\s+\d+\s*--/gi, '')
+    .trim();
 }
 
 function normalizeWhitespace(value: string): string {
