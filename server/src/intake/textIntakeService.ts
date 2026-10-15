@@ -199,7 +199,7 @@ function buildProseResumeDraft(text: string, sourceKind: IntakeSourceKind, model
     experience,
     education,
     skills,
-    projects: [],
+    projects: detectProjects(text),
   };
 
   const sections = {
@@ -323,6 +323,7 @@ function detectExperience(text: string, headline: string, warnings: ResumeIntake
   }
 
   detectRoleAtExperience(text, entries, headline, warnings);
+  detectLooseEmployment(text, entries, headline, warnings);
   detectChineseExperience(text, entries, headline, warnings);
 
   if (entries.length === 0) {
@@ -352,6 +353,31 @@ function detectRoleAtExperience(text: string, entries: ResumeData['experience'],
       bullets: sentenceAround(text, company),
     });
     if (!dates.startDate && !dates.endDate) {
+      warnings.push({ code: 'UNCERTAIN_DATES', message: `Dates were not clearly detected for ${company}.`, fieldPath: `experience.${entries.length - 1}` });
+    }
+  }
+}
+
+function detectLooseEmployment(text: string, entries: ResumeData['experience'], headline: string, warnings: ResumeIntakeWarning[]) {
+  const companyWord = '(?!since\\b|from\\b|in\\b|during\\b|as\\b|until\\b|and\\b|with\\b)[A-Za-z][A-Za-z0-9&.\'’\\-]*';
+  const pattern = new RegExp(`(?:worked|interned|joined|served)\\s+(?:at|for)\\s+(${companyWord}(?:\\s+${companyWord}){0,4})(?:\\s+(since|from|in|during)\\s+((?:[A-Za-z]{3,9}\\.?\\s+)?\\d{4}))?`, 'gi');
+  for (const match of text.matchAll(pattern)) {
+    const company = presentCompany(cleanCompany(match[1]));
+    if (!company || entries.some(entry => entry.company.toLowerCase() === company.toLowerCase())) continue;
+    const relation = (match[2] || '').toLowerCase();
+    const startDate = (match[3] || '').trim();
+    const window = text.slice(match.index || 0, (match.index || 0) + match[0].length + 80);
+    const roleMatch = window.match(/\bas\s+(?:an?\s+)?([A-Za-z][A-Za-z /-]{2,40}?)(?=[,.]|$)/i);
+    entries.push({
+      id: `exp-${entries.length + 1}`,
+      company,
+      role: tidyLabel(roleMatch?.[1] || '') || headline,
+      startDate,
+      endDate: '',
+      current: relation === 'since',
+      bullets: sentenceAround(text, company),
+    });
+    if (!startDate) {
       warnings.push({ code: 'UNCERTAIN_DATES', message: `Dates were not clearly detected for ${company}.`, fieldPath: `experience.${entries.length - 1}` });
     }
   }
@@ -458,6 +484,19 @@ function detectEducation(text: string, warnings: ResumeIntakeWarning[]): ResumeD
     });
   }
 
+  const graduatedFrom = text.matchAll(/graduated from\s+(?:the\s+)?([A-Za-z][A-Za-z0-9&.,'’ -]{2,80}?)(?=\s+with\s+|[,.]|$)/gi);
+  for (const match of graduatedFrom) {
+    const school = presentCompany(match[1].trim());
+    if (!school || entries.some(entry => entry.school.toLowerCase() === school.toLowerCase())) continue;
+    const window = text.slice((match.index || 0) + match[0].length, (match.index || 0) + match[0].length + 160);
+    const degree = degreeAfterWith(window);
+    entries.push({
+      id: `edu-${entries.length + 1}`,
+      school,
+      degree: tidyDegree(degree) || 'Degree',
+    });
+  }
+
   if (entries.length === 0) {
     warnings.push({ code: 'MISSING_EDUCATION', message: 'No education entry was confidently detected.', fieldPath: 'education' });
   }
@@ -468,12 +507,12 @@ function detectEducation(text: string, warnings: ResumeIntakeWarning[]): ResumeD
 function detectSkills(text: string, warnings: ResumeIntakeWarning[]): ResumeData['skills'] {
   const lowerText = text.toLowerCase();
   const detected = knownSkills.filter(skill => lowerText.includes(skill.toLowerCase()));
-  const listed = text.match(/(?:skills?\s+include|tools?\s+include|proficient in|familiar with|擅长|熟悉|技能(?:包括)?[:：])\s*([^.]{2,240})/i);
-  if (listed?.[1]) {
-    detected.push(...listed[1].split(/\s*(?:,\s*(?:and|及|与|和)\b|，|、|,|\band\b|及|与|和)\s*/i).map(item => item.trim()).filter(item => item.length > 1 && item.length <= 40));
+  const listPattern = /(?:skills?\s+include|tools?\s+include|proficient in|familiar with|擅长|熟悉|技能(?:包括)?\s*[:：]|技术栈\s*[:：]|skills?\s*[:：]|tools?\s*[:：])\s*([^.]{2,240})/gi;
+  for (const listed of text.matchAll(listPattern)) {
+    detected.push(...listed[1].split(/\s*(?:,\s*(?:and|及|与|和)\b|，|、|,|\band\b|及|与|和)\s*/i));
   }
 
-  const items = Array.from(new Set(detected));
+  const items = mergeSkillItems(detected);
   if (items.length === 0) {
     warnings.push({ code: 'MISSING_SKILLS', message: 'No recognizable skills were detected.', fieldPath: 'skills' });
     return [];
@@ -501,11 +540,43 @@ function detectWebsite(text: string, email: string): string | undefined {
   return normalized;
 }
 
+function detectProjects(text: string): ResumeData['projects'] {
+  const projects: ResumeData['projects'] = [];
+  const patterns = [
+    /(?:side project|personal project|open[- ]source project|project)\s*[:：]\s*([^,.\n，。]{2,60})/gi,
+    /(?:项目|开源项目)\s*[:：]\s*([^，。\n]{2,40})/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const name = cleanPhrase(match[1]);
+      if (!name || projects.some(project => project.name.toLowerCase() === name.toLowerCase())) continue;
+      const window = text.slice(match.index || 0, (match.index || 0) + match[0].length + 120);
+      const description = window.split(/[.。\n]/)[0]?.replace(/^.*[:：]\s*/, '').trim() || name;
+      projects.push({
+        id: `project-${projects.length + 1}`,
+        name,
+        description: description.slice(0, 240),
+        bullets: [],
+      });
+    }
+  }
+
+  return projects;
+}
+
 function buildSummary(text: string, headline: string, experience: ResumeData['experience'], skills: ResumeData['skills']): string {
-  const cleaned = text.replace(/\s+/g, ' ').trim();
+  const cleaned = stripContactDetails(text).replace(/\s+/g, ' ').trim();
   const withoutIntro = cleaned.replace(/^(?:my name is|i am|i['’]m|我叫|我是)\s+[^.,，。]{2,40}[,，]\s*/i, '');
-  const sentences = withoutIntro.split(/(?<=[.。])\s+/).slice(0, 2).join(' ').trim();
-  if (sentences.length >= 40) return sentences.slice(0, 500);
+  const sentences = withoutIntro
+    .split(/(?<=[.。])\s+/)
+    .map(sentence => sentence.trim())
+    .filter(sentence => sentence.length >= 20 && !isContactResidue(sentence))
+    .slice(0, 2)
+    .join(' ')
+    .trim();
+  const summary = capitalizeSentence(sentences);
+  if (summary.length >= 40 && !containsContactDetails(summary)) return summary.slice(0, 500);
 
   const skillText = skills[0]?.items.slice(0, 5).join(', ');
   const companyText = experience.map(entry => entry.company).filter(Boolean).slice(0, 2).join(' and ');
@@ -514,6 +585,94 @@ function buildSummary(text: string, headline: string, experience: ResumeData['ex
   }
 
   return `${headline} with background described in the provided source material. Review this draft for missing details and specificity.`;
+}
+
+function stripContactDetails(text: string): string {
+  return text
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ')
+    .replace(/(?:\+|00)?\d[\d\s().-]{8,}\d/g, match => (match.replace(/\D/g, '').length >= 10 ? ' ' : match))
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/(?:linkedin|github|dribbble)\.com\/\S+/gi, ' ')
+    .replace(/\b(?:e-?mail|phone|tel|mobile|邮箱|电话|微信)\b\s*[:：]?/gi, ' ')
+    .replace(/\s+([,.;。，])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function containsContactDetails(value: string): boolean {
+  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(value)) return true;
+  for (const match of value.matchAll(/(?:\+|00)?\d[\d\s().-]{8,}\d/g)) {
+    if (match[0].replace(/\D/g, '').length >= 10) return true;
+  }
+  return false;
+}
+
+function presentCompany(value: string): string {
+  const cleaned = value.replace(/\s+/g, ' ').replace(/^(?:the|a|an)\s+/i, '').trim();
+  if (!cleaned || /^(?:my|our|this|that|their|building|doing|working|using|and|with)$/i.test(cleaned)) return '';
+  if (cleaned === cleaned.toLowerCase()) return tidyLabel(cleaned);
+  return cleaned;
+}
+
+function tidyLabel(value: string): string {
+  const trimmed = cleanPhrase(value);
+  if (!trimmed) return '';
+  return trimmed.replace(/\b[a-z]/g, char => char.toUpperCase());
+}
+
+function degreeAfterWith(window: string): string {
+  const match = window.match(/^\s*with\s+([\s\S]+)/i);
+  if (!match?.[1]) return '';
+  const body = match[1];
+  let end = body.length;
+  for (let index = 0; index < body.length; index += 1) {
+    if (body[index] === ',' || body[index] === '，') {
+      end = index;
+      break;
+    }
+    if (body[index] === '.' || body[index] === '。') {
+      const token = body.slice(0, index).match(/[A-Za-z]+$/)?.[0] || '';
+      const abbreviation = token.length > 0 && token.length <= 2;
+      if (!abbreviation) {
+        end = index;
+        break;
+      }
+    }
+  }
+  return body.slice(0, end).replace(/^(?:an?\s+)/i, '').trim();
+}
+
+function tidyDegree(value: string): string {
+  const trimmed = tidyLabel(value);
+  return trimmed.replace(/\b(?:b\.?s\.?|b\.?a\.?|m\.?s\.?|mba|ph\.?d\.?)\b/gi, match => {
+    const compact = match.replace(/\./g, '').toUpperCase();
+    if (compact === 'BS' || compact === 'BA' || compact === 'MS') return `${compact[0]}.${compact[1]}.`;
+    if (compact === 'MBA') return 'MBA';
+    if (compact === 'PHD') return 'Ph.D.';
+    return match;
+  });
+}
+
+function mergeSkillItems(items: string[]): string[] {
+  const seen = new Map<string, string>();
+  for (const raw of items) {
+    const item = raw.trim().replace(/[.。;；]+$/g, '');
+    if (item.length < 2 || item.length > 40 || /@/.test(item) || /^(?:and|or|with|the|a|an|等|和|与)$/i.test(item)) continue;
+    const key = item.toLowerCase();
+    const known = knownSkills.find(skill => skill.toLowerCase() === key);
+    if (!seen.has(key)) seen.set(key, known || item);
+  }
+  return [...seen.values()];
+}
+
+function isContactResidue(sentence: string): boolean {
+  const words = sentence.replace(/[^A-Za-z\u4e00-\u9fff]+/g, ' ').trim();
+  return words.length < 12;
+}
+
+function capitalizeSentence(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.replace(/^[a-z]/, char => char.toUpperCase());
 }
 
 function withChinesePageSize(resume: ResumeData, sourceText: string): ResumeData {

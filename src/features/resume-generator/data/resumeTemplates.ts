@@ -68,24 +68,27 @@ export function resolveTemplateId(templateId: string): string {
   return templateAliases[templateId] || templateId;
 }
 
-function escapeTypst(text: string): string {
+function escapeTypstString(text: string): string {
   return text
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
     .replace(/\r/g, '\\r')
     .replace(/\n/g, '\\n')
-    .replace(/\t/g, '\\t')
-    .replace(/\*/g, '\\*')
-    .replace(/_/g, '\\_')
-    .replace(/%/g, '\\%')
-    .replace(/#/g, '\\#')
-    .replace(/\$/g, '\\$')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]');
+    .replace(/\t/g, '\\t');
+}
+
+function escapeTypstMarkup(text: string): string {
+  return text
+    .replace(/[\\*_`$#@<>[\]~/%]/g, char => `\\${char}`)
+    .replace(/(^|\n)([=+*-])/g, (_match, lead: string, char: string) => `${lead}\\${char}`);
+}
+
+function escapeTypst(text: string): string {
+  return escapeTypstMarkup(text);
 }
 
 function typstString(text: string): string {
-  return `"${escapeTypst(text)}"`;
+  return `"${escapeTypstString(text)}"`;
 }
 
 function typstRawString(text: string): string {
@@ -93,7 +96,11 @@ function typstRawString(text: string): string {
 }
 
 function typstContent(text: string): string {
-  return `[${escapeTypst(text)}]`;
+  return `[${escapeTypstMarkup(text)}]`;
+}
+
+function typstEmphasized(text: string): string {
+  return `*${escapeTypstMarkup(text)}*`;
 }
 
 function formatDate(date: string): string {
@@ -287,7 +294,7 @@ ${renderRenderCvProjects(resume, locale)}
 
 function renderRenderCvExperience(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.experience.length) return '';
-  return `== ${escapeTypst(translate(locale, 'document.experience'))}\n\n${resume.experience.map(exp => `#regular-entry(\n  ${typstContent(`*${exp.role}*, ${exp.company}${exp.location ? ` -- ${exp.location}` : ''}`)},\n  ${typstContent(dateRange(exp.startDate, exp.endDate, exp.current, locale))},\n  main-column-second-row: [\n${exp.bullets.filter(Boolean).map(bullet => `    - ${escapeTypst(bullet)}`).join('\n')}\n  ],\n)`).join('\n\n')}`;
+  return `== ${escapeTypst(translate(locale, 'document.experience'))}\n\n${resume.experience.map(exp => `#regular-entry(\n  [${typstEmphasized(exp.role)}, ${escapeTypstMarkup(exp.company)}${exp.location ? ` -- ${escapeTypstMarkup(exp.location)}` : ''}],\n  ${typstContent(dateRange(exp.startDate, exp.endDate, exp.current, locale))},\n  main-column-second-row: [\n${exp.bullets.filter(Boolean).map(bullet => `    - ${escapeTypstMarkup(bullet)}`).join('\n')}\n  ],\n)`).join('\n\n')}`;
 }
 
 function renderRenderCvEducation(resume: ResumeData, locale: SupportedLocale): string {
@@ -295,7 +302,7 @@ function renderRenderCvEducation(resume: ResumeData, locale: SupportedLocale): s
   return `== ${escapeTypst(translate(locale, 'document.education'))}\n\n${resume.education.map(edu => {
     const degree = `${edu.degree}${edu.field ? `${translate(locale, 'document.educationDegreeConnector')}${edu.field}` : ''}`;
     const details = detailLines(edu.details, '    ');
-    return `#education-entry(\n  ${typstContent(`*${edu.school}*, ${degree}${edu.location ? ` -- ${edu.location}` : ''}`)},\n  ${typstContent(dateRange(edu.startDate, edu.endDate, false, locale))},\n)${details}`;
+    return `#education-entry(\n  [${typstEmphasized(edu.school)}, ${escapeTypstMarkup(degree)}${edu.location ? ` -- ${escapeTypstMarkup(edu.location)}` : ''}],\n  ${typstContent(dateRange(edu.startDate, edu.endDate, false, locale))},\n)${details}`;
   }).join('\n\n')}`;
 }
 
@@ -306,7 +313,7 @@ function renderRenderCvSkills(resume: ResumeData, locale: SupportedLocale): stri
 
 function renderRenderCvProjects(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.projects.length) return '';
-  return `== ${escapeTypst(translate(locale, 'document.projects'))}\n\n${resume.projects.map(project => `#regular-entry(\n  ${typstContent(`*${project.name}*${project.url ? ` -- ${project.url}` : ''}`)},\n  [],\n  main-column-second-row: [\n${projectNarrativeLines(project).map(line => `    - ${escapeTypst(line)}`).join('\n')}\n  ],\n)`).join('\n\n')}`;
+  return `== ${escapeTypst(translate(locale, 'document.projects'))}\n\n${resume.projects.map(project => `#regular-entry(\n  [${typstEmphasized(project.name)}${project.url ? ` -- ${escapeTypstMarkup(project.url)}` : ''}],\n  [],\n  main-column-second-row: [\n${projectNarrativeLines(project).map(line => `    - ${escapeTypstMarkup(line)}`).join('\n')}\n  ],\n)`).join('\n\n')}`;
 }
 
 function brilliantCvTemplate(resume: ResumeData, locale: SupportedLocale): string {
@@ -360,7 +367,7 @@ ${typstLocalePrelude(locale)}
     ),
   ),
   inject: (
-    injected_keywords_list: (${keywords}),
+    injected_keywords_list: (${keywords}${keywords ? ',' : ''}),
   ),
   personal: (
     first_name: ${typstString(firstName)},

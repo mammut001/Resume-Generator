@@ -304,6 +304,39 @@ Tools: Jira`;
     ]);
   });
 
+  it('keeps a second school when education is stacked without a location column', async () => {
+    const text = `Jordan Okonkwo
+Product Manager
+jordan.okonkwo@email.com | +1 (646) 555-0198 | New York, NY
+
+EDUCATION
+University of Michigan
+B.A. Economics
+2015 – 2019
+NYU Stern School of Business
+MBA
+2019 – 2021
+
+SKILLS
+Tools: Jira`;
+
+    const draft = await buildResumeDraftFromParagraph(text);
+    expect(draft.resume.education.map(entry => entry.school)).toEqual([
+      'University of Michigan',
+      'NYU Stern School of Business',
+    ]);
+    expect(draft.resume.education.map(entry => entry.degree)).toEqual(['B.A. Economics', 'MBA']);
+    expect(draft.resume.education.map(entry => entry.endDate)).toEqual(['2019', '2021']);
+
+    const extracted = await extractTextFromPdfBuffer(await createResumePdf(text));
+    const fromPdf = await buildResumeDraftFromPdfText(extracted.text);
+    expect(fromPdf.resume.education.map(entry => entry.school)).toEqual([
+      'University of Michigan',
+      'NYU Stern School of Business',
+    ]);
+    expect(fromPdf.resume.education.map(entry => entry.degree)).toEqual(['B.A. Economics', 'MBA']);
+  });
+
   it('extracts jobs, schools, and skills from heading-less prose when the model gateway fails', async () => {
     const text = 'Priya Nair is a data analyst in Chicago. She has been a Data Analyst at Shopify since 2021, building dashboards. Previously she was a Business Analyst at Zendesk from 2019 to 2021. She earned a B.S. in Information Systems from the University of Illinois Chicago. Skills include SQL, Python, Tableau, and Excel. priya.nair@email.com';
     const draft = await buildResumeDraftFromParagraph(text, {
@@ -319,6 +352,28 @@ Tools: Jira`;
     expect(draft.resume.skills.flatMap(group => group.items)).toEqual(expect.arrayContaining(['SQL', 'Python', 'Tableau', 'Excel']));
     expect(draft.resume.summary).not.toMatch(/background described/i);
     expect(draft.resume.summary.toLowerCase()).toContain('data analyst');
+    expect(draft.resume.summary).not.toMatch(/@/);
+  });
+
+  it('extracts lowercase heading-less prose without putting contact details in the summary', async () => {
+    const text = 'alex chen builds data tools for finance teams and likes careful pipelines. email alex.chen@example.com, phone +1 (415) 555-0134. he worked at stripe since 2020 as a data engineer, and interned at google in 2019. he graduated from carnegie mellon university with a b.s. in computer science. side project: Ledger, an open-source invoice reconciler. skills: Python, SQL, Spark.';
+    const draft = await buildResumeDraftFromParagraph(text, {
+      baseUrl: 'https://gateway.example.com/v1',
+      apiKey: 'test-key',
+      model: 'MiniMax-M2.7',
+      fetchImpl: async () => new Response('unavailable', { status: 503 }),
+    });
+
+    expect(draft.warnings.some(warning => warning.code === 'MODEL_GATEWAY_FAILED')).toBe(true);
+    expect(draft.resume.experience.map(entry => entry.company)).toEqual(expect.arrayContaining(['Stripe', 'Google']));
+    expect(draft.resume.experience.find(entry => entry.company === 'Stripe')?.role).toBe('Data Engineer');
+    expect(draft.resume.education.map(entry => entry.school)).toContain('Carnegie Mellon University');
+    expect(draft.resume.education[0]?.degree.toLowerCase()).toContain('computer science');
+    expect(draft.resume.projects.map(project => project.name)).toContain('Ledger');
+    expect(draft.resume.skills.flatMap(group => group.items)).toEqual(expect.arrayContaining(['Python', 'SQL', 'Spark']));
+    expect(draft.resume.summary[0]).toBe(draft.resume.summary[0].toUpperCase());
+    expect(draft.resume.summary).not.toMatch(/@|415|555/);
+    expect(draft.resume.summary.toLowerCase()).toContain('data tools');
   });
 
   it('extracts Chinese prose jobs and schools when the model gateway fails', async () => {

@@ -28,19 +28,49 @@ describe('resumeToTypst', () => {
   });
 
   it('escapes unsafe characters in user content', () => {
+    const poison = 'dev@ex.com #tag $math *bold* _em_ <lab> [br] \\slash `tick`';
     const resumeWithSpecialChars = {
       ...defaultResume,
       personal: {
         ...defaultResume.personal,
         fullName: 'John "Jack" O\'Brien',
-        headline: 'Engineer & Designer',
+        headline: poison,
+        email: 'dev@ex.com',
       },
-      summary: 'Testing *bold* and _italic_ and #hashtags',
+      summary: poison,
+      experience: [{
+        ...defaultResume.experience[0],
+        role: poison,
+        company: 'Acme @HQ',
+        bullets: [poison],
+      }],
+      skills: [{ id: 'skill-poison', category: 'Tools', items: [poison] }],
+      projects: [{
+        id: 'proj-poison',
+        name: 'Kit',
+        description: poison,
+        url: '',
+        bullets: [poison],
+      }],
     };
-    const result = renderResumeToTypst(resumeWithSpecialChars, 'clean-professional');
-    // Should contain escaped characters
-    expect(result).toContain('\\"');
-    expect(result).not.toContain('[object Object]');
+
+    for (const template of resumeTemplates) {
+      const result = renderResumeToTypst(resumeWithSpecialChars, template.id);
+      expect(result, template.id).toContain('\\@');
+      expect(result, template.id).toContain('\\#');
+      expect(result, template.id).toContain('\\$');
+      expect(result, template.id).toContain('\\*');
+      expect(result, template.id).toContain('\\_');
+      expect(result, template.id).toContain('\\<');
+      expect(result, template.id).toContain('\\>');
+      expect(result, template.id).toContain('\\[');
+      expect(result, template.id).toContain('\\]');
+      expect(result, template.id).toContain('\\\\');
+      expect(result, template.id).toContain('"dev@ex.com"');
+      expect(result, template.id).not.toContain('"dev\\@ex.com"');
+      expect(result, template.id).not.toContain('mailto:dev\\@ex.com');
+    }
+    expect(renderResumeToTypst(resumeWithSpecialChars, 'clean-professional')).toContain('\\"');
   });
 
   it('includes key resume sections', () => {

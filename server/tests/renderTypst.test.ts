@@ -68,6 +68,40 @@ describe('Typst render API', () => {
     expect(payload.error.details).not.toContain('/resume-generator-');
   });
 
+  it.skipIf(!typstAvailable)('compiles user text that contains Typst markup characters', async () => {
+    const poison = 'dev@ex.com #tag $math *bold* _em_ <lab> [br] \\slash `tick`';
+    const resume = {
+      ...defaultResume,
+      personal: {
+        ...defaultResume.personal,
+        headline: poison,
+        email: 'dev@ex.com',
+      },
+      summary: poison,
+      experience: [{
+        ...defaultResume.experience[0],
+        role: poison,
+        company: 'Acme @HQ',
+        bullets: [poison],
+      }],
+      skills: [{ id: 'skill-poison', category: 'Tools', items: [poison] }],
+      projects: [{
+        id: 'proj-poison',
+        name: 'Kit',
+        description: poison,
+        bullets: [poison],
+      }],
+    };
+
+    for (const template of resumeTemplates) {
+      const source = renderResumeToTypst(resume, template.id, 'en');
+      const response = await postRender({ source, format: 'svg' });
+      const output = await response.text();
+      expect(response.status, `${template.id}: ${output}`).toBe(200);
+      expect(output).toContain('<svg');
+    }
+  }, 60_000);
+
   it.skipIf(!typstAvailable)('renders generated resume source', async () => {
     const source = renderResumeToTypst(defaultResume, defaultResume.templateId);
     const response = await postRender({ source, format: 'svg' });
