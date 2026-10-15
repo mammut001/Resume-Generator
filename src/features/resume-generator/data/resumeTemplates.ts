@@ -187,7 +187,8 @@ function renderBasicEducation(resume: ResumeData, locale: SupportedLocale): stri
   if (!resume.education.length) return '';
   return `== ${escapeTypst(translate(locale, 'document.education'))}\n\n${resume.education.map(edu => {
     const degree = `${edu.degree}${edu.field ? `${translate(locale, 'document.educationDegreeConnector')}${edu.field}` : ''}`;
-    return `#edu(\n  institution: ${typstString(edu.school)},\n  location: ${typstString(edu.location || '')},\n  dates: ${typstString(dateRange(edu.startDate, edu.endDate, false, locale))},\n  degree: ${typstString(degree)},\n)`;
+    const details = detailLines(edu.details);
+    return `#edu(\n  institution: ${typstString(edu.school)},\n  location: ${typstString(edu.location || '')},\n  dates: ${typstString(dateRange(edu.startDate, edu.endDate, false, locale))},\n  degree: ${typstString(degree)},\n)${details}`;
   }).join('\n\n')}`;
 }
 
@@ -199,8 +200,8 @@ function renderBasicSkills(resume: ResumeData, locale: SupportedLocale): string 
 function renderBasicProjects(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.projects.length) return '';
   return `== ${escapeTypst(translate(locale, 'document.projects'))}\n\n${resume.projects.map(project => {
-    const bullets = project.bullets.filter(Boolean).map(bullet => `- ${escapeTypst(bullet)}`).join('\n');
-    return `#project(\n  name: ${typstString(project.name)},\n  role: ${typstString(project.description)},\n  url: ${typstString(project.url || '')},\n)\n${bullets}`;
+    const bullets = projectNarrativeLines(project).map(line => `- ${escapeTypst(line)}`).join('\n');
+    return `#project(\n  name: ${typstString(project.name)},\n  role: "",\n  url: ${typstString(project.url || '')},\n)\n${bullets}`;
   }).join('\n\n')}`;
 }
 
@@ -259,7 +260,8 @@ function renderRenderCvEducation(resume: ResumeData, locale: SupportedLocale): s
   if (!resume.education.length) return '';
   return `== ${escapeTypst(translate(locale, 'document.education'))}\n\n${resume.education.map(edu => {
     const degree = `${edu.degree}${edu.field ? `${translate(locale, 'document.educationDegreeConnector')}${edu.field}` : ''}`;
-    return `#education-entry(\n  ${typstContent(`*${edu.school}*, ${degree}${edu.location ? ` -- ${edu.location}` : ''}`)},\n  ${typstContent(dateRange(edu.startDate, edu.endDate, false, locale))},\n)`;
+    const details = detailLines(edu.details, '    ');
+    return `#education-entry(\n  ${typstContent(`*${edu.school}*, ${degree}${edu.location ? ` -- ${edu.location}` : ''}`)},\n  ${typstContent(dateRange(edu.startDate, edu.endDate, false, locale))},\n)${details}`;
   }).join('\n\n')}`;
 }
 
@@ -270,7 +272,7 @@ function renderRenderCvSkills(resume: ResumeData, locale: SupportedLocale): stri
 
 function renderRenderCvProjects(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.projects.length) return '';
-  return `== ${escapeTypst(translate(locale, 'document.projects'))}\n\n${resume.projects.map(project => `#regular-entry(\n  ${typstContent(`*${project.name}*${project.url ? ` -- ${project.url}` : ''}`)},\n  ${typstContent(project.description)},\n  main-column-second-row: [\n${project.bullets.filter(Boolean).map(bullet => `    - ${escapeTypst(bullet)}`).join('\n')}\n  ],\n)`).join('\n\n')}`;
+  return `== ${escapeTypst(translate(locale, 'document.projects'))}\n\n${resume.projects.map(project => `#regular-entry(\n  ${typstContent(`*${project.name}*${project.url ? ` -- ${project.url}` : ''}`)},\n  [],\n  main-column-second-row: [\n${projectNarrativeLines(project).map(line => `    - ${escapeTypst(line)}`).join('\n')}\n  ],\n)`).join('\n\n')}`;
 }
 
 function brilliantCvTemplate(resume: ResumeData, locale: SupportedLocale): string {
@@ -368,7 +370,8 @@ function renderBrilliantEducation(resume: ResumeData, locale: SupportedLocale): 
   if (!resume.education.length) return '';
   return `#cv-section(${typstString(translate(locale, 'document.education'))})\n${resume.education.map(edu => {
     const degree = `${edu.degree}${edu.field ? `${translate(locale, 'document.educationDegreeConnector')}${edu.field}` : ''}`;
-    return `#cv-entry(\n  title: ${typstString(degree)},\n  society: ${typstString(edu.school)},\n  date: ${typstString(dateRange(edu.startDate, edu.endDate, false, locale))},\n  location: ${typstString(edu.location || '')},\n)`;
+    const description = (edu.details || []).filter(Boolean).join(' ');
+    return `#cv-entry(\n  title: ${typstString(degree)},\n  society: ${typstString(edu.school)},\n  date: ${typstString(dateRange(edu.startDate, edu.endDate, false, locale))},\n  location: ${typstString(edu.location || '')},\n  ${description ? `description: ${typstString(description)},\n  ` : ''})`;
   }).join('\n\n')}`;
 }
 
@@ -381,7 +384,7 @@ function renderBrilliantProjects(resume: ResumeData, locale: SupportedLocale): s
   if (!resume.projects.length) return '';
   return `#cv-section(${typstString(translate(locale, 'document.projects'))})
 ${resume.projects.map(project => {
-    const description = [project.description, ...project.bullets.map(bullet => `• ${bullet}`)].filter(Boolean).join(' ');
+    const description = projectNarrativeLines(project).map(line => `• ${line}`).join(' ');
     return `#cv-entry(
   title: ${typstString(project.name)},
   society: ${typstString(project.url || '')},
@@ -390,6 +393,49 @@ ${resume.projects.map(project => {
   description: ${typstString(description)},
 )`;
   }).join('\n\n')}`;
+}
+
+function detailLines(details: string[] | undefined, indent = ''): string {
+  const lines = (details || []).map(detail => detail.trim()).filter(Boolean);
+  if (lines.length === 0) return '';
+  return `\n${lines.map(detail => `${indent}- ${escapeTypst(detail)}`).join('\n')}`;
+}
+
+function projectNarrativeLines(project: { description?: string; bullets: string[] }): string[] {
+  const bullets = dedupeNarrative(project.bullets.map(collapseRepeatedNarrative));
+  const description = collapseRepeatedNarrative(project.description || '');
+  const lines = description && !bullets.some(bullet => sameNarrative(bullet, description))
+    ? [description, ...bullets]
+    : bullets;
+  return dedupeNarrative(lines);
+}
+
+function collapseRepeatedNarrative(value: string): string {
+  const compact = value.trim().replace(/\s+/g, ' ');
+  if (compact.length < 16) return value.trim();
+  const midpoint = Math.floor(compact.length / 2);
+  for (let split = midpoint - 8; split <= midpoint + 8; split += 1) {
+    if (split < 8 || split >= compact.length - 8) continue;
+    const left = compact.slice(0, split).trim();
+    const right = compact.slice(split).trim();
+    if (left.length >= 8 && left === right) return left;
+  }
+  return value.trim();
+}
+
+function dedupeNarrative(lines: string[]): string[] {
+  const seen = new Set<string>();
+  return lines.filter(line => {
+    const key = line.trim().replace(/\s+/g, ' ').toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function sameNarrative(left: string, right: string): boolean {
+  const key = left.trim().replace(/\s+/g, ' ').toLowerCase();
+  return key.length > 0 && key === right.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 export function renderResumeToTypst(resume: ResumeData, templateId: string, locale: SupportedLocale = 'en'): string {

@@ -197,7 +197,7 @@ export async function extractTextFromPdfBuffer(
   const resolvedOcrConfig = resolvePdfOcrConfig(ocrConfig);
 
   try {
-    const result = await parser.getText();
+    const result = await parser.getText({ pageJoiner: '' });
     const extractedText = normalizeExtractedPdfText(result.text || '');
 
     if (extractedText.length >= MIN_EXTRACTED_PDF_TEXT_CHARS) {
@@ -340,9 +340,10 @@ function buildPdfParseFailedError(): RenderHttpError {
 
 function normalizeExtractedPdfText(text: string): string {
   return text
-    .replace(/\u0000/g, ' ')
+    .replaceAll('\u0000', ' ')
     .replace(/\r/g, '\n')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n--\s*\d+\s+of\s+\d+\s*--/gi, '')
     .trim();
 }

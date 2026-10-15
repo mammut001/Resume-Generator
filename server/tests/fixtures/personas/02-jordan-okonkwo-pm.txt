@@ -1,0 +1,35 @@
+Jordan Okonkwo
+Product Manager
+jordan.okonkwo@email.com | +1 (646) 555-0198 | New York, NY
+linkedin.com/in/jordanokonkwo | jordanokonkwo.com
+
+SUMMARY
+Product manager with 5 years of experience shipping B2B SaaS features from discovery to launch. Skilled at aligning engineering, design, and go-to-market teams around clear outcomes and measurable goals.
+
+EXPERIENCE
+Product Manager — Notion (New York, NY)
+Mar 2023 – Present
+- Owned permissions and sharing roadmap; grew weekly active collaborative sessions by 19%
+- Led discovery with 40 enterprise customers; prioritized a template marketplace MVP
+- Partnered with design and eng to cut onboarding time-to-value from 14 days to 6 days
+
+Associate Product Manager — Dropbox (New York, NY)
+Jul 2021 – Feb 2023
+- Launched file-request improvements that increased successful request completion by 12%
+- Defined success metrics and ran A/B tests across three onboarding variants
+- Wrote PRDs and maintained a living backlog of 80+ tickets across two squads
+
+Business Analyst — Deloitte Digital (Chicago, IL)
+Jun 2019 – Jun 2021
+- Supported digital transformation projects for retail clients; mapped user journeys and KPIs
+- Facilitated workshops with stakeholders to scope MVP releases
+
+EDUCATION
+MBA — NYU Stern School of Business
+2019 – 2021
+B.A. Economics — University of Michigan
+2015 – 2019
+
+SKILLS
+Product: Roadmapping, user research, A/B testing, PRDs, analytics
+Tools: Jira, Amplitude, Figma, SQL, Notion
