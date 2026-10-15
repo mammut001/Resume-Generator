@@ -24,13 +24,13 @@ describe('exported PDF round trip', () => {
   });
 
   it.skipIf(!typstAvailable)('preserves an English clean-professional export through /api/intake/pdf', async () => {
-    const source = getDefaultResume('en');
+    const source = withMultipleEntries(getDefaultResume('en'), 'en');
     const imported = await roundTrip(source, 'en');
     expectRoundTrip(source, imported, ' in ');
   }, 60_000);
 
   it.skipIf(!typstAvailable)('preserves a Chinese clean-professional export through /api/intake/pdf', async () => {
-    const source = getDefaultResume('zh-CN');
+    const source = withMultipleEntries(getDefaultResume('zh-CN'), 'zh-CN');
     const imported = await roundTrip(source, 'zh-CN');
     expectRoundTrip(source, imported, '，');
     expect(imported.design.pageSize).toBe('a4');
@@ -59,6 +59,47 @@ describe('exported PDF round trip', () => {
     baseUrl = `http://127.0.0.1:${address.port}`;
   }
 });
+
+function withMultipleEntries(resume: ResumeData, locale: 'en' | 'zh-CN'): ResumeData {
+  const next = JSON.parse(JSON.stringify(resume)) as ResumeData;
+  if (locale === 'en') {
+    next.education.push({
+      id: 'edu-2',
+      school: 'University of Michigan',
+      degree: 'B.A.',
+      field: 'Economics',
+      location: '',
+      startDate: '2015',
+      endDate: '2019',
+    });
+    next.projects.push({
+      id: 'proj-3',
+      name: 'Ledger',
+      description: 'Open-source invoice reconciler.',
+      url: '',
+      bullets: ['Matches payouts to invoices overnight.'],
+    });
+    return next;
+  }
+
+  next.education.push({
+    id: 'edu-2',
+    school: '华南理工大学',
+    degree: '软件工程',
+    field: '学士',
+    location: '',
+    startDate: '2019',
+    endDate: '2023',
+  });
+  next.projects.push({
+    id: 'proj-3',
+    name: '实验记录板',
+    description: '记录训练参数和评测结果。',
+    url: '',
+    bullets: ['支持断点续训。'],
+  });
+  return next;
+}
 
 function expectRoundTrip(source: ResumeData, imported: ResumeData, degreeConnector: string) {
   expect(imported.personal.fullName).toBe(source.personal.fullName);

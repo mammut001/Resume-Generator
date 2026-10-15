@@ -371,7 +371,8 @@ function parseDatedSection(lines: string[], kind: 'experience' | 'education'): D
       continue;
     }
 
-    if (active && isWrappedContinuation(line, lastEntryText(active, kind), nextLine)) {
+    const educationBoundary = kind === 'education' && Boolean(active?.right) && !looksLikeEducationDetail(line);
+    if (active && !educationBoundary && isWrappedContinuation(line, lastEntryText(active, kind), nextLine)) {
       appendContinuation(active, kind, line);
       continue;
     }
@@ -381,16 +382,50 @@ function parseDatedSection(lines: string[], kind: 'experience' | 'education'): D
       continue;
     }
 
-    if (active && kind === 'education' && !active.right) {
-      active.right = line;
-      continue;
+    if (kind === 'education') {
+      if (!active && !pendingSchool) {
+        pendingSchool = { school: line };
+        continue;
+      }
+      if (pendingSchool && !looksLikeEducationDetail(line) && (!active || educationComplete(active))) {
+        commit();
+        entry = {
+          left: line,
+          right: pendingSchool.school,
+          location: pendingSchool.location,
+          startDate: '',
+          endDate: '',
+          current: false,
+          bullets: [],
+          details: [],
+        };
+        pendingSchool = null;
+        continue;
+      }
+      if (active && !active.right && !looksLikeEducationDetail(line)) {
+        active.right = line;
+        continue;
+      }
+      if (active && educationComplete(active) && !looksLikeEducationDetail(line)) {
+        pendingSchool = { school: line };
+        continue;
+      }
+      if (active) active.details.push(line);
     }
-
-    if (active && kind === 'education') active.details.push(line);
   }
 
   commit();
   return entries;
+}
+
+function educationComplete(entry: DatedEntry): boolean {
+  return Boolean(entry.left && entry.right);
+}
+
+function looksLikeEducationDetail(line: string): boolean {
+  return /[|｜]/.test(line)
+    || /\b(?:gpa|coursework|courses|honors|honours|activities|thesis|relevant|dean'?s)\b/i.test(line)
+    || /绩点|相关课程|主修|荣誉|论文|辅修/.test(line);
 }
 
 function lastEntryText(entry: DatedEntry, kind: 'experience' | 'education'): string {
