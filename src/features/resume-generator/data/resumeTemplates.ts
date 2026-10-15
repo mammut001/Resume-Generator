@@ -126,6 +126,24 @@ function pagePaper(resume: ResumeData): string {
   return resume.design?.pageSize === 'a4' ? 'a4' : 'us-letter';
 }
 
+function skillSeparator(locale: SupportedLocale): string {
+  return isChineseLocale(locale) ? '、' : ', ';
+}
+
+function sameSectionLabel(category: string, sectionTitle: string): boolean {
+  return category.trim().toLowerCase() === sectionTitle.trim().toLowerCase();
+}
+
+function renderLabeledSkills(resume: ResumeData, locale: SupportedLocale): string {
+  const sectionTitle = translate(locale, 'document.skills');
+  const separator = skillSeparator(locale);
+  return resume.skills.map(skill => {
+    const items = escapeTypst(skill.items.join(separator));
+    if (sameSectionLabel(skill.category, sectionTitle)) return items;
+    return `*${escapeTypst(skill.category)}:* ${items}`;
+  }).join('\n');
+}
+
 function compactLines(lines: Array<string | undefined | null>): string[] {
   return lines.filter((line): line is string => Boolean(line && line.trim()));
 }
@@ -171,8 +189,23 @@ ${typstLocalePrelude(locale)}
   personal-info-position: left,
 )
 
+${renderBasicHeadline(resume)}
+${renderBasicExtraLink(resume)}
 ${sections}
 `;
+}
+
+function renderBasicHeadline(resume: ResumeData): string {
+  const headline = resume.personal.headline.trim();
+  if (!headline) return '';
+  return `#text(style: "italic")[${escapeTypst(headline)}]\n`;
+}
+
+function renderBasicExtraLink(resume: ResumeData): string {
+  const extraLink = resume.personal.extraLink?.trim();
+  if (!extraLink) return '';
+  const href = /^https?:\/\//i.test(extraLink) ? extraLink : `https://${extraLink}`;
+  return `#link(${typstString(href)})[${escapeTypst(extraLink)}]\n`;
 }
 
 function renderBasicExperience(resume: ResumeData, locale: SupportedLocale): string {
@@ -194,7 +227,7 @@ function renderBasicEducation(resume: ResumeData, locale: SupportedLocale): stri
 
 function renderBasicSkills(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.skills.length) return '';
-  return `== ${escapeTypst(translate(locale, 'document.skills'))}\n\n${resume.skills.map(skill => `*${escapeTypst(skill.category)}:* ${escapeTypst(skill.items.join(', '))}`).join('\n')}`;
+  return `== ${escapeTypst(translate(locale, 'document.skills'))}\n\n${renderLabeledSkills(resume, locale)}`;
 }
 
 function renderBasicProjects(resume: ResumeData, locale: SupportedLocale): string {
@@ -214,6 +247,7 @@ function renderCvTemplate(resume: ResumeData, locale: SupportedLocale): string {
     resume.personal.linkedin ? `#link(${typstString(`https://${resume.personal.linkedin}`)}, ${typstString(resume.personal.linkedin)})` : '',
     resume.personal.github ? `#link(${typstString(`https://${resume.personal.github}`)}, ${typstString(resume.personal.github)})` : '',
     resume.personal.website ? `#link(${typstString(`https://${resume.personal.website}`)}, ${typstString(resume.personal.website)})` : '',
+    resume.personal.extraLink ? `#link(${typstString(/^https?:\/\//i.test(resume.personal.extraLink) ? resume.personal.extraLink : `https://${resume.personal.extraLink}`)}, ${typstString(resume.personal.extraLink)})` : '',
   ]).map(item => `[${item}]`).join(',\n  ');
 
   return `#import "@preview/rendercv:0.3.0": *
@@ -267,7 +301,7 @@ function renderRenderCvEducation(resume: ResumeData, locale: SupportedLocale): s
 
 function renderRenderCvSkills(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.skills.length) return '';
-  return `== ${escapeTypst(translate(locale, 'document.skills'))}\n\n${resume.skills.map(skill => `*${escapeTypst(skill.category)}:* ${escapeTypst(skill.items.join(', '))}`).join('\n')}`;
+  return `== ${escapeTypst(translate(locale, 'document.skills'))}\n\n${renderLabeledSkills(resume, locale)}`;
 }
 
 function renderRenderCvProjects(resume: ResumeData, locale: SupportedLocale): string {
@@ -340,6 +374,7 @@ ${typstLocalePrelude(locale)}
 
 #show: cv.with(metadata, profile-photo: none)
 
+${resume.personal.extraLink ? `#link(${typstString(/^https?:\/\//i.test(resume.personal.extraLink) ? resume.personal.extraLink : `https://${resume.personal.extraLink}`)})[${escapeTypst(resume.personal.extraLink)}]\n` : ''}
 ${resume.summary ? `#cv-section(${typstString(translate(locale, 'document.summary'))})\n${typstContent(resume.summary)}\n` : ''}
 ${renderBrilliantExperience(resume, locale)}
 
@@ -377,7 +412,12 @@ function renderBrilliantEducation(resume: ResumeData, locale: SupportedLocale): 
 
 function renderBrilliantSkills(resume: ResumeData, locale: SupportedLocale): string {
   if (!resume.skills.length) return '';
-  return `#cv-section(${typstString(translate(locale, 'document.skills'))})\n${resume.skills.map(skill => `#cv-skill(type: ${typstString(skill.category)}, info: ${typstString(skill.items.join(', '))})`).join('\n')}`;
+  const sectionTitle = translate(locale, 'document.skills');
+  const separator = skillSeparator(locale);
+  return `#cv-section(${typstString(sectionTitle)})\n${resume.skills.map(skill => {
+    const category = sameSectionLabel(skill.category, sectionTitle) ? '' : skill.category;
+    return `#cv-skill(type: ${typstString(category)}, info: ${typstString(skill.items.join(separator))})`;
+  }).join('\n')}`;
 }
 
 function renderBrilliantProjects(resume: ResumeData, locale: SupportedLocale): string {

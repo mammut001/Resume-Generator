@@ -1,5 +1,6 @@
 import { IncomingMessage } from 'node:http';
 import Busboy from 'busboy';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { PDFParse } from 'pdf-parse';
 import { PDFDocument } from 'pdf-lib';
 import { RenderHttpError } from '../lib/errors.js';
@@ -7,6 +8,8 @@ import { PdfOcrConfig, resolvePdfOcrConfig } from './pdfOcr.js';
 import { PdfDocumentPageRange, ResumeIntakeWarning } from './types.js';
 
 const MIN_EXTRACTED_PDF_TEXT_CHARS = 20;
+const PDF_LINE_THRESHOLD = 4.6;
+const PDF_COLUMN_GAP = 12;
 
 export type ExtractedPdfTextResult = {
   text: string;
@@ -197,8 +200,7 @@ export async function extractTextFromPdfBuffer(
   const resolvedOcrConfig = resolvePdfOcrConfig(ocrConfig);
 
   try {
-    const result = await parser.getText({ pageJoiner: '' });
-    const extractedText = normalizeExtractedPdfText(result.text || '');
+    const extractedText = normalizeExtractedPdfText(await extractLayoutText(buffer));
 
     if (extractedText.length >= MIN_EXTRACTED_PDF_TEXT_CHARS) {
       return {
@@ -338,12 +340,177 @@ function buildPdfParseFailedError(): RenderHttpError {
   );
 }
 
+async function extractLayoutText(buffer: Buffer): Promise<string> {
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    verbosity: pdfjs.VerbosityLevel?.ERRORS ?? 0,
+  });
+  const document = await loadingTask.promise;
+
+  try {
+    const pages: string[] = [];
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      pages.push(await extractPageLayoutText(page));
+      page.cleanup();
+    }
+    return pages.join('\n');
+  } finally {
+    await document.destroy();
+  }
+}
+
+type LayoutTextItem = {
+  str: string;
+  transform: number[];
+  width?: number;
+  height?: number;
+  hasEOL?: boolean;
+};
+
+function isLayoutTextItem(item: unknown): item is LayoutTextItem {
+  if (!item || typeof item !== 'object') return false;
+  const candidate = item as { str?: unknown; transform?: unknown };
+  return typeof candidate.str === 'string' && Array.isArray(candidate.transform);
+}
+
+type LayoutGlyph = {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  eol: boolean;
+};
+
+async function extractPageLayoutText(page: pdfjs.PDFPageProxy): Promise<string> {
+  const viewport = page.getViewport({ scale: 1 });
+  const textContent = await page.getTextContent({
+    includeMarkedContent: false,
+    disableNormalization: false,
+  });
+  const glyphs: LayoutGlyph[] = [];
+
+  for (const item of textContent.items) {
+    if (!isLayoutTextItem(item)) continue;
+    const [x, y] = viewport.convertToViewportPoint(item.transform[4] || 0, item.transform[5] || 0);
+    const width = item.width || 0;
+    glyphs.push({
+      text: item.str,
+      x,
+      y,
+      width,
+      height: item.height || 0,
+      eol: Boolean(item.hasEOL),
+    });
+  }
+
+  const prepared = mergeWrappedCjkLabels(glyphs);
+  const chunks: string[] = [];
+  let lastX: number | undefined;
+  let lastY: number | undefined;
+  let lineHeight = 0;
+
+  for (let index = 0; index < prepared.length; index += 1) {
+    const glyph = prepared[index];
+    const next = prepared[index + 1];
+    let text = glyph.text;
+    const label = isSkillLabelGlyph(glyph, next);
+
+    if (lastY !== undefined && Math.abs(lastY - glyph.y) > PDF_LINE_THRESHOLD) {
+      const lastItem = chunks.at(-1);
+      const startsNewLine = text.startsWith('\n') || text.trim() === '';
+      if (lastItem?.endsWith('\n') === false && !startsNewLine && Math.abs(lastY - glyph.y) - 1 > lineHeight) {
+        chunks.push('\n');
+        lineHeight = 0;
+      }
+    }
+
+    const sameLine = lastY !== undefined && Math.abs(lastY - glyph.y) < PDF_LINE_THRESHOLD;
+    const wideSpace = text.trim() === '' && glyph.width >= PDF_COLUMN_GAP;
+    const columnGap = sameLine && lastX !== undefined && glyph.x - lastX > PDF_COLUMN_GAP;
+    const lineStart = chunks.length === 0 || Boolean(chunks.at(-1)?.endsWith('\n'));
+    if (!lineStart && label) {
+      chunks.push('\n');
+      lineHeight = 0;
+    }
+
+    if (wideSpace) text = '\t';
+    else if (columnGap && text.trim() !== '' && !label) text = `\t${text}`;
+
+    chunks.push(text);
+    lastX = glyph.x + glyph.width;
+    lastY = glyph.y;
+    lineHeight = Math.max(lineHeight, glyph.height);
+    if (glyph.eol) chunks.push('\n');
+    if (glyph.eol || text.endsWith('\n')) lineHeight = 0;
+  }
+
+  return chunks.join('');
+}
+
+function mergeWrappedCjkLabels(glyphs: LayoutGlyph[]): LayoutGlyph[] {
+  const merged: LayoutGlyph[] = [];
+  for (let index = 0; index < glyphs.length; index += 1) {
+    const glyph = glyphs[index];
+    const next = glyphs[index + 1];
+    if (
+      next
+      && /^[\u4e00-\u9fff]{1,2}$/.test(glyph.text.trim())
+      && /^[\u4e00-\u9fff]/.test(next.text.trim())
+      && Math.abs(next.y - glyph.y) > PDF_LINE_THRESHOLD
+      && glyph.x > 180
+    ) {
+      next.text = `${glyph.text.trim()}${next.text.trim()}`;
+      continue;
+    }
+    merged.push(glyph);
+  }
+  return merged;
+}
+
+function isSkillLabelGlyph(glyph: LayoutGlyph, next: LayoutGlyph | undefined): boolean {
+  const text = glyph.text.trim();
+  if (!text || text.length > 40 || /[,，、]/.test(text)) return false;
+  if (/[:：]$/.test(text) && /[A-Za-z\u4e00-\u9fff]/.test(text)) return true;
+  return Boolean(next && /^[:：]$/.test(next.text.trim()) && /^[\u4e00-\u9fffA-Za-z0-9 &/+.#-]{2,40}$/.test(text));
+}
+
 function normalizeExtractedPdfText(text: string): string {
-  return text
+  const cleaned = text
     .replaceAll('\u0000', ' ')
-    .replace(/\r/g, '\n')
+    .replace(/[’‘]/g, "'")
+    .replace(/\r/g, '\n');
+  return repairWrappedPdfColumns(cleaned)
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .replace(/\n--\s*\d+\s+of\s+\d+\s*--/gi, '')
     .trim();
+}
+
+function repairWrappedPdfColumns(text: string): string {
+  const lines = text.split('\n');
+  const repaired: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    let line = lines[index];
+    const next = lines[index + 1];
+    if (!next) {
+      repaired.push(line);
+      continue;
+    }
+
+    const hangingPresent = next.match(/^(至今|现在|Present|Now)(?=\s|\t|$|[^\s])/i);
+    if (/[–—-]\s*$/.test(line) && hangingPresent) {
+      line = `${line.replace(/\s+$/, '')} ${hangingPresent[1]}`;
+      lines[index + 1] = next.slice(hangingPresent[1].length).replace(/^\s+/, '');
+    } else if (/(?:年\s*)?\d{1,2}\s*$/.test(line) && /^月(?=\s|\t|$|[\u4e00-\u9fff])/.test(next)) {
+      line = `${line.replace(/\s+$/, '')} 月`;
+      lines[index + 1] = next.slice(1).replace(/^\s+/, '');
+    }
+
+    repaired.push(line);
+  }
+
+  return repaired.join('\n');
 }

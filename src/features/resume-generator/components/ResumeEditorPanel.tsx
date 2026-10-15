@@ -691,7 +691,7 @@ export function StartIntakeSection({
               {t('actions.generateDraft')}
             </Button>
           </div>
-          <IntakeStatusNotice mode="text" status={intakeStatus} />
+          <IntakeStatusNotice mode="text" status={intakeStatus} fallback={Boolean(draft?.warnings.some(warning => warning.code === 'MODEL_GATEWAY_FAILED'))} />
           {error && <p className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs text-rose-700">{error}</p>}
         </ControlGroup>
       ) : (
@@ -784,7 +784,7 @@ export function StartIntakeSection({
               {selectedPdfName ? t('actions.chooseAnotherPdf') : t('actions.choosePdf')}
             </Button>
           </div>
-          <IntakeStatusNotice mode="pdf" status={intakeStatus} fileName={selectedPdfName} />
+          <IntakeStatusNotice mode="pdf" status={intakeStatus} fileName={selectedPdfName} fallback={Boolean(draft?.warnings.some(warning => warning.code === 'MODEL_GATEWAY_FAILED'))} />
           {error && <p className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs text-rose-700">{error}</p>}
         </ControlGroup>
       )}
@@ -850,15 +850,22 @@ export function StartIntakeSection({
             </div>
           )}
 
+          {draft.warnings.some(warning => warning.code === 'MODEL_GATEWAY_FAILED') && (
+            <div role="alert" className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-rose-800">
+              <p className="text-sm font-semibold">{t('intake.warningMessages.modelGatewayFailedTitle')}</p>
+              <p className="mt-1 text-xs leading-5">{t('intake.warningMessages.modelGatewayFailed')}</p>
+            </div>
+          )}
+
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-medium text-slate-900">{draft.resume.personal.fullName}</p>
             <p className="mt-1 text-xs text-slate-500">{draft.resume.personal.headline}</p>
             <p className="mt-2 line-clamp-3 text-xs text-slate-500">{draft.resume.summary}</p>
           </div>
 
-          {draft.warnings.length > 0 && (
+          {draft.warnings.some(warning => warning.code !== 'MODEL_GATEWAY_FAILED') && (
             <div className="space-y-1.5">
-              {draft.warnings.map(warning => (
+              {draft.warnings.filter(warning => warning.code !== 'MODEL_GATEWAY_FAILED').map(warning => (
                 <div key={`${warning.code}-${warning.fieldPath || warning.message}`} className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>{formatIntakeWarningMessage(warning, t)}</span>
@@ -1033,8 +1040,17 @@ function DraftStat({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-function IntakeStatusNotice({ mode, status, fileName }: { mode: StartIntakeMode; status: IntakeStatus; fileName?: string | null }) {
+function IntakeStatusNotice({ mode, status, fileName, fallback = false }: { mode: StartIntakeMode; status: IntakeStatus; fileName?: string | null; fallback?: boolean }) {
   const { t } = useI18n();
+
+  if (status === 'success' && fallback) {
+    return (
+      <div role="alert" className="flex items-start gap-2 rounded-md border border-rose-300 bg-rose-50 px-2.5 py-2 text-xs text-rose-800">
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>{t('intake.warningMessages.modelGatewayFailed')}</span>
+      </div>
+    );
+  }
 
   const config = {
     idle: {
@@ -1142,6 +1158,9 @@ function BasicsSection() {
         </Field>
         <Field label={t('fields.website')}>
           <Input className={inputClass} value={personal.website || ''} onChange={event => updatePersonal({ website: event.target.value })} placeholder={t('placeholders.website')} />
+        </Field>
+        <Field label={t('fields.extraLink')}>
+          <Input className={inputClass} value={personal.extraLink || ''} onChange={event => updatePersonal({ extraLink: event.target.value })} placeholder={t('placeholders.extraLink')} />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-2">

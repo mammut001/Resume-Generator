@@ -319,6 +319,7 @@ function normalizeModelPayload(payload: unknown): ResumeIntakeResult {
         phone: resume.personal?.phone || resume.phone || '',
         location: resume.personal?.location || resume.location || '',
         ...(resume.personal?.website || resume.website ? { website: resume.personal?.website || resume.website } : {}),
+        ...(resume.personal?.extraLink ? { extraLink: resume.personal.extraLink } : {}),
         ...(resume.personal?.linkedin || resume.linkedin ? { linkedin: resume.personal?.linkedin || resume.linkedin } : {}),
         ...(resume.personal?.github || resume.github ? { github: resume.personal?.github || resume.github } : {}),
       },

@@ -51,6 +51,7 @@ export type ResumeData = {
     phone: string;
     location: string;
     website?: string;
+    extraLink?: string;
     linkedin?: string;
     github?: string;
   };
