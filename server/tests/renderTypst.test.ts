@@ -4,6 +4,8 @@ import { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 import { defaultResume, getDefaultResume } from '../../src/features/resume-generator/data/defaultResume';
+import { extractTextFromPdfBuffer } from '../src/intake/pdfIntake';
+import { compileTypst } from '../src/services/typstService';
 import { renderResumeToTypst, resumeTemplates } from '../../src/features/resume-generator/data/resumeTemplates';
 
 const typstBin = process.env.TYPST_BIN || 'typst';
@@ -110,6 +112,22 @@ describe('Typst render API', () => {
     expect(response.status).toBe(200);
     expect(output).toContain('<svg');
   });
+
+  it.skipIf(!typstAvailable)('prints brilliant-cv summary without brackets and keeps each job bullet separate', async () => {
+    const source = renderResumeToTypst(defaultResume, 'brilliant-cv', 'en');
+    const pdf = await compileTypst({ source, format: 'pdf' }, { timeoutMs: 60_000 });
+    const extracted = await extractTextFromPdfBuffer(pdf);
+
+    expect(extracted.text).toContain('Frontend engineer with 5+ years');
+    expect(extracted.text).not.toContain('[Frontend engineer');
+    expect(extracted.text).not.toContain('millions.]');
+    expect(extracted.text).toContain('Led frontend architecture');
+    expect(extracted.text).toContain('Mentored 4 junior engineers');
+    expect(extracted.text).toContain('Built a reusable component library');
+    expect(extracted.text).toMatch(/30%\.\s*\n\s*• Mentored 4 junior engineers/);
+    expect(extracted.text).toMatch(/team\.\s*\n\s*• Built a reusable component library/);
+    expect(extracted.text).not.toMatch(/30%\. • Mentored/);
+  }, 60_000);
 
   it.skipIf(!typstAvailable)('renders generated Chinese resume source for all visible templates', async () => {
     const zhResume = getDefaultResume('zh-CN');

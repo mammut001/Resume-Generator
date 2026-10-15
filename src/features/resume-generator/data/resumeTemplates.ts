@@ -99,6 +99,26 @@ function typstContent(text: string): string {
   return `[${escapeTypstMarkup(text)}]`;
 }
 
+function linkTarget(value: string): string | null {
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?$/i.test(trimmed)) return `https://${trimmed}`;
+  return null;
+}
+
+function typstOptionalLink(label: string): string {
+  const target = linkTarget(label);
+  const visible = escapeTypstMarkup(label);
+  if (!target) return visible;
+  return `#link(${typstString(target)})[${visible}]`;
+}
+
+function typstBulletList(items: string[]): string {
+  const lines = items.map(item => item.trim()).filter(Boolean);
+  if (lines.length === 0) return '""';
+  return `list(\n${lines.map(line => `    [${escapeTypstMarkup(line)}],`).join('\n')}\n  )`;
+}
+
 function typstEmphasized(text: string): string {
   return `*${escapeTypstMarkup(text)}*`;
 }
@@ -211,8 +231,7 @@ function renderBasicHeadline(resume: ResumeData): string {
 function renderBasicExtraLink(resume: ResumeData): string {
   const extraLink = resume.personal.extraLink?.trim();
   if (!extraLink) return '';
-  const href = /^https?:\/\//i.test(extraLink) ? extraLink : `https://${extraLink}`;
-  return `#link(${typstString(href)})[${escapeTypst(extraLink)}]\n`;
+  return `${typstOptionalLink(extraLink)}\n`;
 }
 
 function renderBasicExperience(resume: ResumeData, locale: SupportedLocale): string {
@@ -245,6 +264,12 @@ function renderBasicProjects(resume: ResumeData, locale: SupportedLocale): strin
   }).join('\n\n')}`;
 }
 
+function renderCvConnection(value: string): string {
+  const target = linkTarget(value);
+  if (!target) return escapeTypstMarkup(value);
+  return `#link(${typstString(target)}, ${typstString(value)})`;
+}
+
 function renderCvTemplate(resume: ResumeData, locale: SupportedLocale): string {
   const accentColor = normalizeHexColor(resume.design?.accentColor || resumeDesignDefaults.accentColor);
   const connections = compactLines([
@@ -254,7 +279,7 @@ function renderCvTemplate(resume: ResumeData, locale: SupportedLocale): string {
     resume.personal.linkedin ? `#link(${typstString(`https://${resume.personal.linkedin}`)}, ${typstString(resume.personal.linkedin)})` : '',
     resume.personal.github ? `#link(${typstString(`https://${resume.personal.github}`)}, ${typstString(resume.personal.github)})` : '',
     resume.personal.website ? `#link(${typstString(`https://${resume.personal.website}`)}, ${typstString(resume.personal.website)})` : '',
-    resume.personal.extraLink ? `#link(${typstString(/^https?:\/\//i.test(resume.personal.extraLink) ? resume.personal.extraLink : `https://${resume.personal.extraLink}`)}, ${typstString(resume.personal.extraLink)})` : '',
+    resume.personal.extraLink ? renderCvConnection(resume.personal.extraLink) : '',
   ]).map(item => `[${item}]`).join(',\n  ');
 
   return `#import "@preview/rendercv:0.3.0": *
@@ -381,8 +406,8 @@ ${typstLocalePrelude(locale)}
 
 #show: cv.with(metadata, profile-photo: none)
 
-${resume.personal.extraLink ? `#link(${typstString(/^https?:\/\//i.test(resume.personal.extraLink) ? resume.personal.extraLink : `https://${resume.personal.extraLink}`)})[${escapeTypst(resume.personal.extraLink)}]\n` : ''}
-${resume.summary ? `#cv-section(${typstString(translate(locale, 'document.summary'))})\n${typstContent(resume.summary)}\n` : ''}
+${resume.personal.extraLink ? `${typstOptionalLink(resume.personal.extraLink)}\n` : ''}
+${resume.summary ? `#cv-section(${typstString(translate(locale, 'document.summary'))})\n${escapeTypstMarkup(resume.summary)}\n` : ''}
 ${renderBrilliantExperience(resume, locale)}
 
 ${renderBrilliantEducation(resume, locale)}
@@ -397,13 +422,12 @@ function renderBrilliantExperience(resume: ResumeData, locale: SupportedLocale):
   if (!resume.experience.length) return '';
   return `#cv-section(${typstString(translate(locale, 'document.experience'))})
 ${resume.experience.map(exp => {
-    const description = exp.bullets.filter(Boolean).map(bullet => `• ${bullet}`).join(' ');
     return `#cv-entry(
   title: ${typstString(exp.role)},
   society: ${typstString(exp.company)},
   date: ${typstString(dateRange(exp.startDate, exp.endDate, exp.current, locale))},
   location: ${typstString(exp.location || '')},
-  description: ${typstString(description)},
+  description: ${typstBulletList(exp.bullets)},
 )`;
   }).join('\n\n')}`;
 }
@@ -412,8 +436,8 @@ function renderBrilliantEducation(resume: ResumeData, locale: SupportedLocale): 
   if (!resume.education.length) return '';
   return `#cv-section(${typstString(translate(locale, 'document.education'))})\n${resume.education.map(edu => {
     const degree = `${edu.degree}${edu.field ? `${translate(locale, 'document.educationDegreeConnector')}${edu.field}` : ''}`;
-    const description = (edu.details || []).filter(Boolean).join(' ');
-    return `#cv-entry(\n  title: ${typstString(degree)},\n  society: ${typstString(edu.school)},\n  date: ${typstString(dateRange(edu.startDate, edu.endDate, false, locale))},\n  location: ${typstString(edu.location || '')},\n  ${description ? `description: ${typstString(description)},\n  ` : ''})`;
+    const details = (edu.details || []).filter(Boolean);
+    return `#cv-entry(\n  title: ${typstString(degree)},\n  society: ${typstString(edu.school)},\n  date: ${typstString(dateRange(edu.startDate, edu.endDate, false, locale))},\n  location: ${typstString(edu.location || '')},\n  ${details.length ? `description: ${typstBulletList(details)},\n  ` : ''})`;
   }).join('\n\n')}`;
 }
 
@@ -431,13 +455,12 @@ function renderBrilliantProjects(resume: ResumeData, locale: SupportedLocale): s
   if (!resume.projects.length) return '';
   return `#cv-section(${typstString(translate(locale, 'document.projects'))})
 ${resume.projects.map(project => {
-    const description = projectNarrativeLines(project).map(line => `• ${line}`).join(' ');
     return `#cv-entry(
   title: ${typstString(project.name)},
   society: ${typstString(project.url || '')},
   date: "",
   location: "",
-  description: ${typstString(description)},
+  description: ${typstBulletList(projectNarrativeLines(project))},
 )`;
   }).join('\n\n')}`;
 }

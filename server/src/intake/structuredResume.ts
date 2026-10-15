@@ -75,9 +75,9 @@ const DATE_RANGE_SEPARATOR = '(?:—|–|--|-|~|to|至)';
 const DATE_RANGE_PATTERN = new RegExp(`^(${DATE_TOKEN})\\s*${DATE_RANGE_SEPARATOR}\\s*(${DATE_TOKEN}|${PRESENT_WORD})$`, 'i');
 const TRAILING_DATE_RANGE_PATTERN = new RegExp(`^(.*\\S)\\s+(${DATE_TOKEN})\\s*${DATE_RANGE_SEPARATOR}\\s*(${DATE_TOKEN}|${PRESENT_WORD})$`, 'i');
 const BULLET_PATTERN = /^(?:[-*•·]|\u2013)\s+(.+)$/;
-const ENGLISH_NAME_PATTERN = /^[A-Z][a-zA-Z'’.-]+(?:\s+[A-Z][a-zA-Z'’.-]+){1,2}$/;
+const ENGLISH_NAME_PATTERN = /^[A-Z][a-zA-Z'’._-]+(?:\s+[A-Z][a-zA-Z'’._-]+){1,2}$/;
 const CHINESE_NAME_PATTERN = /^[\u4e00-\u9fff·]{2,4}$/;
-const MIXED_NAME_PATTERN = /^(?:[\u4e00-\u9fff·]{2,4}\s+[A-Z][a-zA-Z'’.-]+(?:\s+[A-Z][a-zA-Z'’.-]+){1,2}|[A-Z][a-zA-Z'’.-]+(?:\s+[A-Z][a-zA-Z'’.-]+){1,2}\s+[\u4e00-\u9fff·]{2,4})$/;
+const MIXED_NAME_PATTERN = /^(?:[\u4e00-\u9fff·]{2,4}\s+[A-Z][a-zA-Z'’._-]+(?:\s+[A-Z][a-zA-Z'’._-]+){1,2}|[A-Z][a-zA-Z'’._-]+(?:\s+[A-Z][a-zA-Z'’._-]+){1,2}\s+[\u4e00-\u9fff·]{2,4})$/;
 
 export function parseStructuredResume(input: string): ResumeData | null {
   const lines = normalizeLines(input);
@@ -208,6 +208,7 @@ function parseHeader(lines: string[], chinese: boolean): ResumeData['personal'] 
         if (consumed.location && !location) location = consumed.location;
         if (consumed.linkedin && !linkedin) linkedin = consumed.linkedin;
         if (consumed.github && !github) github = consumed.github;
+        if (consumed.extraLink && !extraLink) extraLink = consumed.extraLink;
         if (consumed.website) {
           const assigned = assignWebsite(website, extraLink, consumed.website);
           website = assigned.website;
@@ -251,9 +252,12 @@ function consumeContactSegment(segment: string): {
   phone?: string;
   location?: string;
   website?: string;
+  extraLink?: string;
   linkedin?: string;
   github?: string;
 } {
+  const handle = segment.match(/^@([A-Za-z0-9._]+)(?:\s+on\s+([A-Za-z][A-Za-z0-9]*))?$/);
+  if (handle) return { extraLink: handle[2] ? `@${handle[1]} on ${handle[2]}` : `@${handle[1]}` };
   if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(segment)) return { email: segment };
   if (isPhone(segment)) return { phone: segment };
 
