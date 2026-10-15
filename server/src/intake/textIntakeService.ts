@@ -73,7 +73,7 @@ async function buildResumeDraftFromSourceText(
   if (hasModelGatewayConfig(modelGatewayConfig)) {
     try {
       const modelResult = await buildResumeDraftWithModel(text, modelGatewayConfig);
-      const resume = sanitizeIntakeResume(modelResult.resume, text);
+      const resume = withChinesePageSize(sanitizeIntakeResume(modelResult.resume, text), text);
       return validateResumeIntakeResult({
         ...modelResult,
         resume,
@@ -190,7 +190,10 @@ function buildProseResumeDraft(text: string, sourceKind: IntakeSourceKind, model
     id: `intake-${Date.now()}`,
     title: `${headline} Resume`,
     templateId: 'clean-professional',
-    design: defaultDesign,
+    design: {
+      ...defaultDesign,
+      pageSize: /[\u4e00-\u9fff]/.test(text) ? 'a4' : 'letter',
+    },
     personal,
     summary,
     experience,
@@ -319,6 +322,9 @@ function detectExperience(text: string, headline: string, warnings: ResumeIntake
     }
   }
 
+  detectRoleAtExperience(text, entries, headline, warnings);
+  detectChineseExperience(text, entries, headline, warnings);
+
   if (entries.length === 0) {
     warnings.push({ code: 'MISSING_EXPERIENCE', message: 'No experience entries were confidently detected.', fieldPath: 'experience' });
   }
@@ -326,28 +332,149 @@ function detectExperience(text: string, headline: string, warnings: ResumeIntake
   return entries;
 }
 
-function detectEducation(text: string, warnings: ResumeIntakeWarning[]): ResumeData['education'] {
-  const educationMatch = text.match(/studied\s+([A-Za-z .&]+?)\s+at\s+([A-Z][A-Za-z .,&-]+?)(?:[,.]|$)/i);
-  if (!educationMatch) {
-    warnings.push({ code: 'MISSING_EDUCATION', message: 'No education entry was confidently detected.', fieldPath: 'education' });
-    return [];
+const proseRole = '(?:(?:Senior|Junior|Associate|Staff|Lead|Principal)\\s+)?(?:(?:Frontend|Backend|Full[- ]Stack|Software|Product|Data|Business|Machine Learning|ML)\\s+)?(?:Engineer|Designer|Manager|Analyst|Developer|Scientist|Intern|Researcher|Consultant)';
+
+function detectRoleAtExperience(text: string, entries: ResumeData['experience'], headline: string, warnings: ResumeIntakeWarning[]) {
+  const pattern = new RegExp(`\\b(${proseRole})\\s+at\\s+([A-Z][A-Za-z0-9&.'’.-]+(?:\\s+[A-Z][A-Za-z0-9&.'’.-]+){0,5})`, 'g');
+  for (const match of text.matchAll(pattern)) {
+    const role = cleanPhrase(match[1]);
+    const company = cleanCompany(match[2]);
+    if (!company || entries.some(entry => entry.company.toLowerCase() === company.toLowerCase())) continue;
+    const window = text.slice(match.index || 0, (match.index || 0) + match[0].length + 80);
+    const dates = datesNear(window);
+    entries.push({
+      id: `exp-${entries.length + 1}`,
+      company,
+      role: role || headline,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+      current: dates.current,
+      bullets: sentenceAround(text, company),
+    });
+    if (!dates.startDate && !dates.endDate) {
+      warnings.push({ code: 'UNCERTAIN_DATES', message: `Dates were not clearly detected for ${company}.`, fieldPath: `experience.${entries.length - 1}` });
+    }
+  }
+}
+
+function detectChineseExperience(text: string, entries: ResumeData['experience'], headline: string, warnings: ResumeIntakeWarning[]) {
+  const patterns = [
+    /在([^，。；\n]{2,24}?)(?:担任|任职|工作)(?:过)?([^，。；\n]{2,16})/g,
+    /担任([^，。；\n]{2,16})[，,]?(?:就职于|任职于)([^，。；\n]{2,24})/g,
+    /就职于([^，。；\n]{2,24})/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const companyFirst = pattern.source.startsWith('在') || pattern.source.startsWith('就职于');
+      const company = cleanPhrase(companyFirst ? match[1] : match[2]);
+      const role = cleanPhrase(companyFirst ? (match[2] || headline) : match[1]);
+      if (!company || entries.some(entry => entry.company === company)) continue;
+      const windowStart = Math.max(0, (match.index || 0) - 20);
+      const dates = datesNear(text.slice(windowStart, (match.index || 0) + match[0].length + 40));
+      entries.push({
+        id: `exp-${entries.length + 1}`,
+        company,
+        role: role || headline,
+        startDate: dates.startDate,
+        endDate: dates.endDate,
+        current: dates.current,
+        bullets: sentenceAround(text, company),
+      });
+      if (!dates.startDate && !dates.endDate) {
+        warnings.push({ code: 'UNCERTAIN_DATES', message: `Dates were not clearly detected for ${company}.`, fieldPath: `experience.${entries.length - 1}` });
+      }
+    }
+  }
+}
+
+function datesNear(text: string): { startDate: string; endDate: string; current: boolean } {
+  const ranged = text.match(/(?:from|since)\s+((?:[A-Za-z]{3,9}\.?\s+)?\d{4})(?:\s+(?:to|until|through|-|–|—)\s+((?:[A-Za-z]{3,9}\.?\s+)?\d{4}|present|now))?/i);
+  if (ranged) {
+    const current = !ranged[2] || /^(present|now)$/i.test(ranged[2]);
+    return {
+      startDate: ranged[1].trim(),
+      endDate: current ? '' : ranged[2].trim(),
+      current: Boolean(current && /since|present|now/i.test(text)),
+    };
   }
 
-  return [
-    {
+  const chinese = text.match(/(\d{4}\s*年(?:\s*\d{1,2}\s*月)?)(?:\s*(?:至|到|-|–|—)\s*(\d{4}\s*年(?:\s*\d{1,2}\s*月)?|至今))?/);
+  if (chinese) {
+    const ongoing = chinese[2] === '至今' || !chinese[2];
+    return {
+      startDate: chinese[1].trim(),
+      endDate: ongoing ? '' : (chinese[2] || '').trim(),
+      current: chinese[2] === '至今' || (!chinese[2] && /至今|目前/.test(text)),
+    };
+  }
+
+  return { startDate: '', endDate: '', current: false };
+}
+
+function sentenceAround(text: string, company: string): string[] {
+  const clauses = extractBulletsNearCompany(text, company);
+  if (clauses.length > 0) return clauses;
+  const escaped = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sentence = text.match(new RegExp(`[^。\\n.]*${escaped}[^。\\n.]*[。.]?`))?.[0]?.trim();
+  if (!sentence || sentence.length < 12 || sentence.length > 240) return [];
+  return [sentence.replace(/\s+/g, ' ')];
+}
+
+function cleanPhrase(value: string): string {
+  return value.replace(/\s+/g, ' ').replace(/[，,。.\s]+$/g, '').trim();
+}
+
+function detectEducation(text: string, warnings: ResumeIntakeWarning[]): ResumeData['education'] {
+  const entries: ResumeData['education'] = [];
+  const studied = text.match(/studied\s+([A-Za-z .&]+?)\s+at\s+([A-Z][A-Za-z .,&-]+?)(?:[,.]|$)/i);
+  if (studied) {
+    entries.push({
       id: 'edu-1',
-      school: educationMatch[2].trim(),
+      school: studied[2].trim(),
       degree: 'Degree',
-      field: normalizeField(educationMatch[1]),
-    },
-  ];
+      field: normalizeField(studied[1]),
+    });
+  }
+
+  const degreeFrom = text.matchAll(/(?:^|[^A-Za-z])((?:B\.?S\.?|B\.?A\.?|M\.?S\.?|M\.?B\.?A\.?|Ph\.?D\.?|Bachelor(?: of [A-Za-z ]+)?|Master(?: of [A-Za-z ]+)?|MBA))(?![A-Za-z])(?:\s+in\s+([A-Za-z ]{2,40}?))?\s+from\s+(?:the\s+)?([A-Z][A-Za-z0-9&.,'’ -]{2,80}?)(?=[,.]|$)/gi);
+  for (const match of degreeFrom) {
+    const school = match[3].trim();
+    if (entries.some(entry => entry.school.toLowerCase() === school.toLowerCase())) continue;
+    entries.push({
+      id: `edu-${entries.length + 1}`,
+      school,
+      degree: match[1].trim(),
+      ...(match[2] ? { field: normalizeField(match[2]) } : {}),
+    });
+  }
+
+  const graduated = text.match(/毕业于\s*([^，。\n]{2,30})/);
+  if (graduated && !entries.some(entry => entry.school === graduated[1].trim())) {
+    entries.push({
+      id: `edu-${entries.length + 1}`,
+      school: graduated[1].trim(),
+      degree: '学位',
+    });
+  }
+
+  if (entries.length === 0) {
+    warnings.push({ code: 'MISSING_EDUCATION', message: 'No education entry was confidently detected.', fieldPath: 'education' });
+  }
+
+  return entries;
 }
 
 function detectSkills(text: string, warnings: ResumeIntakeWarning[]): ResumeData['skills'] {
   const lowerText = text.toLowerCase();
   const detected = knownSkills.filter(skill => lowerText.includes(skill.toLowerCase()));
+  const listed = text.match(/(?:skills?\s+include|tools?\s+include|proficient in|familiar with|擅长|熟悉|技能(?:包括)?[:：])\s*([^.]{2,240})/i);
+  if (listed?.[1]) {
+    detected.push(...listed[1].split(/\s*(?:,\s*(?:and|及|与|和)\b|，|、|,|\band\b|及|与|和)\s*/i).map(item => item.trim()).filter(item => item.length > 1 && item.length <= 40));
+  }
 
-  if (detected.length === 0) {
+  const items = Array.from(new Set(detected));
+  if (items.length === 0) {
     warnings.push({ code: 'MISSING_SKILLS', message: 'No recognizable skills were detected.', fieldPath: 'skills' });
     return [];
   }
@@ -356,7 +483,7 @@ function detectSkills(text: string, warnings: ResumeIntakeWarning[]): ResumeData
     {
       id: 'skill-1',
       category: /[\u4e00-\u9fff]/.test(text) ? '技能' : 'Skills',
-      items: Array.from(new Set(detected)),
+      items,
     },
   ];
 }
@@ -375,14 +502,23 @@ function detectWebsite(text: string, email: string): string | undefined {
 }
 
 function buildSummary(text: string, headline: string, experience: ResumeData['experience'], skills: ResumeData['skills']): string {
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  const withoutIntro = cleaned.replace(/^(?:my name is|i am|i['’]m|我叫|我是)\s+[^.,，。]{2,40}[,，]\s*/i, '');
+  const sentences = withoutIntro.split(/(?<=[.。])\s+/).slice(0, 2).join(' ').trim();
+  if (sentences.length >= 40) return sentences.slice(0, 500);
+
   const skillText = skills[0]?.items.slice(0, 5).join(', ');
   const companyText = experience.map(entry => entry.company).filter(Boolean).slice(0, 2).join(' and ');
-
   if (companyText && skillText) {
     return `${headline} with experience at ${companyText}, working across ${skillText}. Drafted from source material and ready for review.`;
   }
 
   return `${headline} with background described in the provided source material. Review this draft for missing details and specificity.`;
+}
+
+function withChinesePageSize(resume: ResumeData, sourceText: string): ResumeData {
+  if (!/[\u4e00-\u9fff]/.test(sourceText) || resume.design.pageSize === 'a4') return resume;
+  return { ...resume, design: { ...resume.design, pageSize: 'a4' } };
 }
 
 function extractBulletsNearCompany(text: string, company: string): string[] {

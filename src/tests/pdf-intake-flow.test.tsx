@@ -336,6 +336,50 @@ describe('PDF intake flow', () => {
     expect(appliedResume.design).toEqual(currentResume.design);
     expect(appliedResume.personal.fullName).toBe('Jordan Lee');
   });
+
+  it('shows a clear alert when text intake falls back after a model gateway failure', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/usage')) {
+        return jsonResponse({ remainingAttempts: 3, limit: 3, resetAt: null });
+      }
+      if (url.endsWith('/text')) {
+        return jsonResponse({
+          ...buildPdfDraft({
+            warnings: [{ code: 'MODEL_GATEWAY_FAILED', message: 'The model gateway was unavailable, so this draft used the local intake parser instead.' }],
+          }),
+          source: { kind: 'paragraph', extractedText: 'Priya Nair is a data analyst.' },
+        });
+      }
+      return jsonResponse({});
+    });
+
+    await act(async () => {
+      root.render(<StartIntakeSection onGoToContent={vi.fn()} />);
+    });
+    await flushUi();
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      setter?.call(textarea, 'Priya Nair is a data analyst at Shopify since 2021 and studied at Berkeley.');
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await flushUi();
+
+    const generate = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Generate draft'));
+    expect(generate).toBeTruthy();
+    await act(async () => {
+      generate?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushUi();
+
+    expect(container.querySelectorAll('[role="alert"]').length).toBeGreaterThan(0);
+    expect(container.textContent).toContain('Model gateway failed');
+    expect(container.textContent).toContain('local parser');
+    expect(container.textContent).toContain('Jordan Lee');
+  });
 });
 
 function buildPdfDraft(overrides: Record<string, unknown> = {}) {

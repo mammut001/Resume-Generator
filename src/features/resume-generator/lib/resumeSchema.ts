@@ -9,6 +9,7 @@ export const resumePersonalSchema = z.object({
   phone: z.string().optional(),
   location: z.string().optional(),
   website: z.string().optional(),
+  extraLink: z.string().optional(),
   linkedin: z.string().optional(),
   github: z.string().optional(),
 });

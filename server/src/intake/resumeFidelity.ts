@@ -27,6 +27,7 @@ export function websiteIsInSource(website: string, sourceText: string): boolean 
 
 function sanitizePersonal(personal: ResumeData['personal'], sourceText: string): ResumeData['personal'] {
   let website = personal.website?.trim();
+  let extraLink = personal.extraLink?.trim();
   let linkedin = personal.linkedin;
   let github = personal.github;
 
@@ -41,6 +42,7 @@ function sanitizePersonal(personal: ResumeData['personal'], sourceText: string):
   }
 
   if (website && !websiteIsInSource(website, sourceText)) website = undefined;
+  if (extraLink && (!websiteIsInSource(extraLink, sourceText) || extraLink === website)) extraLink = undefined;
 
   return {
     fullName: personal.fullName,
@@ -49,6 +51,7 @@ function sanitizePersonal(personal: ResumeData['personal'], sourceText: string):
     phone: personal.phone,
     location: personal.location,
     ...(website ? { website } : {}),
+    ...(extraLink ? { extraLink } : {}),
     ...(linkedin ? { linkedin } : {}),
     ...(github ? { github } : {}),
   };

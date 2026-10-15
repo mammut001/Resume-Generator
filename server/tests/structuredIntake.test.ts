@@ -255,6 +255,91 @@ describe('structured resume intake', () => {
     ]);
   });
 
+  it('reads bilingual headings and a mixed Chinese-English name', async () => {
+    const text = `林嘉怡 Jiayi Lin
+Product Designer
+jiayi.lin@email.com | +1 (415) 555-0100 | 上海
+linkedin.com/in/jiayilin | jiayilin.design | dribbble.com/jiayi
+
+EXPERIENCE / 工作经历
+Product Designer — Figma (San Francisco, CA)
+Jan 2022 – Present
+- Shipped a component spec used by 12 teams
+
+SKILLS / 技能
+Product: Figma, prototyping
+Tools: Jira, Notion`;
+
+    const draft = await buildResumeDraftFromParagraph(text);
+    expect(draft.resume.personal.fullName).toBe('林嘉怡 Jiayi Lin');
+    expect(draft.resume.personal.headline).toBe('Product Designer');
+    expect(draft.resume.personal.website).toBe('jiayilin.design');
+    expect(draft.resume.personal.extraLink).toBe('dribbble.com/jiayi');
+    expect(draft.resume.experience.map(entry => entry.company)).toEqual(['Figma']);
+    expect(draft.resume.experience[0].role).toBe('Product Designer');
+    expect(draft.resume.experience[0].startDate).toBe('Jan 2022');
+    expect(draft.resume.experience[0].current).toBe(true);
+    expect(draft.resume.skills.map(group => group.category)).toEqual(['Product', 'Tools']);
+    expect(draft.resume.skills[1].items).toContain('Jira');
+    expect(draft.resume.design.pageSize).toBe('a4');
+  });
+
+  it('joins a wrapped bullet continuation onto the previous bullet', async () => {
+    const text = `Jordan Okonkwo
+Product Manager
+jordan.okonkwo@email.com | +1 (646) 555-0198 | New York, NY
+
+EXPERIENCE
+Product Manager — Notion (New York, NY)
+Mar 2023 – Present
+- Owned permissions and sharing roadmap; grew weekly active
+collaborative sessions by 19%
+
+SKILLS
+Tools: Jira`;
+
+    const draft = await buildResumeDraftFromParagraph(text);
+    expect(draft.resume.experience[0].bullets).toEqual([
+      'Owned permissions and sharing roadmap; grew weekly active collaborative sessions by 19%',
+    ]);
+  });
+
+  it('extracts jobs, schools, and skills from heading-less prose when the model gateway fails', async () => {
+    const text = 'Priya Nair is a data analyst in Chicago. She has been a Data Analyst at Shopify since 2021, building dashboards. Previously she was a Business Analyst at Zendesk from 2019 to 2021. She earned a B.S. in Information Systems from the University of Illinois Chicago. Skills include SQL, Python, Tableau, and Excel. priya.nair@email.com';
+    const draft = await buildResumeDraftFromParagraph(text, {
+      baseUrl: 'https://gateway.example.com/v1',
+      apiKey: 'test-key',
+      model: 'MiniMax-M2.7',
+      fetchImpl: async () => new Response('unavailable', { status: 503 }),
+    });
+
+    expect(draft.warnings.some(warning => warning.code === 'MODEL_GATEWAY_FAILED')).toBe(true);
+    expect(draft.resume.experience.map(entry => entry.company)).toEqual(expect.arrayContaining(['Shopify', 'Zendesk']));
+    expect(draft.resume.education.map(entry => entry.school)).toContain('University of Illinois Chicago');
+    expect(draft.resume.skills.flatMap(group => group.items)).toEqual(expect.arrayContaining(['SQL', 'Python', 'Tableau', 'Excel']));
+    expect(draft.resume.summary).not.toMatch(/background described/i);
+    expect(draft.resume.summary.toLowerCase()).toContain('data analyst');
+  });
+
+  it('extracts Chinese prose jobs and schools when the model gateway fails', async () => {
+    const text = '我是李晓然，在字节跳动担任产品运营。2021 年至今就职于小红书。毕业于复旦大学。熟悉 Excel、SQL 和活动策划。li.xiaoran@email.com';
+    const draft = await buildResumeDraftFromParagraph(text, {
+      baseUrl: 'https://gateway.example.com/v1',
+      apiKey: 'test-key',
+      model: 'MiniMax-M2.7',
+      fetchImpl: async () => {
+        throw new Error('gateway down');
+      },
+    });
+
+    expect(draft.warnings.some(warning => warning.code === 'MODEL_GATEWAY_FAILED')).toBe(true);
+    expect(draft.resume.experience.map(entry => entry.company)).toEqual(expect.arrayContaining(['字节跳动', '小红书']));
+    expect(draft.resume.education.map(entry => entry.school)).toContain('复旦大学');
+    expect(draft.resume.skills.flatMap(group => group.items).join(' ')).toMatch(/Excel/);
+    expect(draft.resume.design.pageSize).toBe('a4');
+    expect(draft.resume.summary).not.toMatch(/background described/i);
+  });
+
   it('accepts a pasted persona through the intake route', async () => {
     const text = readPersona('personas', '01-maya-chen-newgrad.txt');
     await startServer();

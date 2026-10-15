@@ -140,6 +140,31 @@ describe('resumeToTypst', () => {
     expect(zhBrilliant).toContain('cv-section("项目")');
   });
 
+  it('prints the headline, hides a repeated skill label, and uses Chinese page and skill punctuation', () => {
+    const zhResume = getDefaultResume('zh-CN');
+    const enBasic = renderResumeToTypst(defaultResume, 'clean-professional', 'en');
+    const zhBasic = renderResumeToTypst(zhResume, 'clean-professional', 'zh-CN');
+    const flatEnglish = renderResumeToTypst({
+      ...defaultResume,
+      skills: [{ id: 'skill-1', category: 'Skills', items: ['TypeScript', 'React'] }],
+    }, 'clean-professional', 'en');
+    const flatChinese = renderResumeToTypst({
+      ...zhResume,
+      skills: [{ id: 'skill-1', category: '技能', items: ['TypeScript', 'React'] }],
+    }, 'clean-professional', 'zh-CN');
+
+    expect(enBasic).toContain('#text(style: "italic")[Product-Minded Frontend Engineer]');
+    expect(zhBasic).toContain('#text(style: "italic")[注重产品体验的前端工程师]');
+    expect(zhResume.design.pageSize).toBe('a4');
+    expect(zhBasic).toContain('paper: "a4"');
+    expect(enBasic).toContain('paper: "us-letter"');
+    expect(zhBasic).toContain('TypeScript、JavaScript');
+    expect(flatEnglish).not.toContain('*Skills:*');
+    expect(flatEnglish).toContain('TypeScript, React');
+    expect(flatChinese).not.toContain('*技能:*');
+    expect(flatChinese).toContain('TypeScript、React');
+  });
+
   it('adds Chinese language hints for Chinese Typst output', () => {
     const zhResume = getDefaultResume('zh-CN');
     const basic = renderResumeToTypst(zhResume, 'clean-professional', 'zh-CN');

@@ -104,7 +104,7 @@ export const defaultResumeZhCN: ResumeData = {
   id: 'default-resume-zh-cn',
   title: '前端工程师简历',
   templateId: 'clean-professional',
-  design: { ...resumeDesignDefaults },
+  design: { ...resumeDesignDefaults, pageSize: 'a4' },
   personal: {
     fullName: '陈晨',
     headline: '注重产品体验的前端工程师',

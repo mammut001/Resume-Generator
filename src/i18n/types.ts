@@ -172,6 +172,7 @@ export type TranslationSchema = {
     phone: string;
     location: string;
     website: string;
+    extraLink: string;
     linkedin: string;
     github: string;
     role: string;
@@ -217,6 +218,7 @@ export type TranslationSchema = {
     phone: string;
     location: string;
     website: string;
+    extraLink: string;
     linkedin: string;
     github: string;
     summary: string;
@@ -321,6 +323,7 @@ export type TranslationSchema = {
       lowConfidenceSection: string;
       modelOutputRepaired: string;
       modelGatewayFailed: string;
+      modelGatewayFailedTitle: string;
       modelGatewayNotConfigured: string;
       pdfLikelyPacket: string;
       pdfMultipleCandidates: string;
