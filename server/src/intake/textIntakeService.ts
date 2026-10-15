@@ -242,6 +242,7 @@ function detectPersonal(text: string, headline: string, warnings: ResumeIntakeWa
   const linkedin = text.match(/linkedin\.com\/[^\s,;.)]+/i)?.[0];
   const github = text.match(/github\.com\/[^\s,;.)]+/i)?.[0];
   const website = detectWebsite(text, email);
+  const extraLink = detectSocialHandle(text);
   const name = detectName(text);
 
   if (name === 'Imported Candidate') {
@@ -253,23 +254,29 @@ function detectPersonal(text: string, headline: string, warnings: ResumeIntakeWa
     headline,
     email,
     phone,
-    location: '',
+    location: detectLocation(text),
     ...(website ? { website } : {}),
+    ...(extraLink ? { extraLink } : {}),
     ...(linkedin ? { linkedin } : {}),
     ...(github ? { github } : {}),
   };
 }
 
+const nameToken = "[A-Z][A-Za-z'’._-]*";
+
 function detectName(text: string): string {
-  const namedPrefix = text.match(/(?:[Mm]y name is|[Ii] am|[Ii]['’]m)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/);
+  const namedPrefix = text.match(new RegExp(`(?:[Mm]y name is|[Ii] am|[Ii]['’]m)\\s+(${nameToken}(?:\\s+${nameToken})+)`));
   if (namedPrefix?.[1]) return namedPrefix[1];
 
   const firstLine = text.split(/[.\n]/)[0]?.trim() || '';
-  const leadingName = firstLine.match(/^([A-Z][a-z]+\s+[A-Z][a-z]+)(?:,|\s+-\s+)/);
+  const leadingName = firstLine.match(new RegExp(`^(${nameToken}(?:\\s+${nameToken}){1,2})(?:,|\\s+-\\s+|\\s+is\\b)`));
   return leadingName?.[1] || 'Imported Candidate';
 }
 
 function detectHeadline(text: string): string {
+  const titled = text.match(new RegExp(`^${nameToken}(?:\\s+${nameToken}){1,2},\\s+([A-Z][A-Za-z0-9+./]*(?:\\s+[A-Z][A-Za-z0-9+./]*){0,5})(?=\\s+in\\s+[A-Z]|[,.]|$)`));
+  if (titled?.[1] && looksLikeRoleTitle(titled[1])) return titled[1];
+
   const lowerText = text.toLowerCase();
   const role = roleKeywords.find(keyword => lowerText.includes(keyword));
   if (!role && /\b(frontend|front-end|react|typescript|web apps?)\b/i.test(text)) {
@@ -284,23 +291,39 @@ function detectHeadline(text: string): string {
     .join(' ');
 }
 
+function looksLikeRoleTitle(value: string): boolean {
+  return /\b(engineer|designer|manager|analyst|developer|scientist|advocate|intern|researcher|consultant|lead)\b/i.test(value);
+}
+
+function detectLocation(text: string): string {
+  const match = text.match(/\b(?:based|located|living|residing)?\s*\bin\s+([A-Z][a-zA-Z.]+(?:\s+[A-Z][a-zA-Z.]+){0,2},\s*[A-Z]{2})\b/);
+  return match?.[1]?.replace(/\s+/g, ' ') || '';
+}
+
+function detectSocialHandle(text: string): string | undefined {
+  const match = text.match(/(?:^|\s)(@[A-Za-z0-9._]+)(?:\s+on\s+([A-Za-z][A-Za-z0-9]*))?(?=\s|[.,]|$)/);
+  if (!match) return undefined;
+  return match[2] ? `${match[1]} on ${match[2]}` : match[1];
+}
+
 function detectExperience(text: string, headline: string, warnings: ResumeIntakeWarning[]): ResumeData['experience'] {
   const entries: ResumeData['experience'] = [];
   const explicitCompanyPattern = /(?:worked at|at)\s+([A-Z][A-Za-z0-9& .-]+?)\s+from\s+([A-Za-z]{3,9}\s+)?(\d{4})(?:\s+(?:until|to|through|-)\s+(now|present|[A-Za-z]{3,9}\s+\d{4}|\d{4}))?/gi;
 
   for (const match of text.matchAll(explicitCompanyPattern)) {
-    const company = cleanCompany(match[1]);
+    const asParts = match[1].match(/^(.*?)\s+as\s+(?:an?\s+)?(.+)$/i);
+    const company = cleanCompany(asParts?.[1] || match[1]);
     if (!company || entries.some(entry => entry.company.toLowerCase() === company.toLowerCase())) continue;
 
     const endDate = match[4] || '';
     entries.push({
       id: `exp-${entries.length + 1}`,
       company,
-      role: headline,
+      role: tidyLabel(asParts?.[2] || '') || headline,
       startDate: `${match[2] || ''}${match[3]}`.trim(),
       endDate: /^(now|present)$/i.test(endDate) ? '' : endDate,
       current: /^(now|present)$/i.test(endDate),
-      bullets: extractBulletsNearCompany(text, company),
+      bullets: sentenceAround(text, company),
     });
   }
 
@@ -316,7 +339,7 @@ function detectExperience(text: string, headline: string, warnings: ResumeIntake
         startDate: '',
         endDate: '',
         current: false,
-        bullets: extractBulletsNearCompany(text, company),
+        bullets: sentenceAround(text, company),
       });
       warnings.push({ code: 'UNCERTAIN_DATES', message: `Dates were not clearly detected for ${company}.`, fieldPath: `experience.${entries.length - 1}` });
     }
@@ -359,25 +382,24 @@ function detectRoleAtExperience(text: string, entries: ResumeData['experience'],
 }
 
 function detectLooseEmployment(text: string, entries: ResumeData['experience'], headline: string, warnings: ResumeIntakeWarning[]) {
-  const companyWord = '(?!since\\b|from\\b|in\\b|during\\b|as\\b|until\\b|and\\b|with\\b)[A-Za-z][A-Za-z0-9&.\'’\\-]*';
-  const pattern = new RegExp(`(?:worked|interned|joined|served)\\s+(?:at|for)\\s+(${companyWord}(?:\\s+${companyWord}){0,4})(?:\\s+(since|from|in|during)\\s+((?:[A-Za-z]{3,9}\\.?\\s+)?\\d{4}))?`, 'gi');
+  const companyWord = '(?!since\\b|from\\b|in\\b|during\\b|as\\b|until\\b|and\\b|with\\b|the\\b|a\\b|an\\b)[A-Za-z][A-Za-z0-9&.\'’\\-]*';
+  const pattern = new RegExp(`\\b(?:(?:worked|interned|served)\\s+(?:at|for)|joined)\\s+(${companyWord}(?:\\s+${companyWord}){0,4})`, 'gi');
   for (const match of text.matchAll(pattern)) {
     const company = presentCompany(cleanCompany(match[1]));
     if (!company || entries.some(entry => entry.company.toLowerCase() === company.toLowerCase())) continue;
-    const relation = (match[2] || '').toLowerCase();
-    const startDate = (match[3] || '').trim();
-    const window = text.slice(match.index || 0, (match.index || 0) + match[0].length + 80);
-    const roleMatch = window.match(/\bas\s+(?:an?\s+)?([A-Za-z][A-Za-z /-]{2,40}?)(?=[,.]|$)/i);
+    const window = text.slice(match.index || 0, (match.index || 0) + match[0].length + 120);
+    const dates = datesNear(window);
+    const roleMatch = window.match(/\bas\s+(?:an?\s+)?([A-Za-z][A-Za-z0-9 /'+.-]{1,48}?)(?=\s+(?:from|since|in|during|until)\b|[,.]|$)/i);
     entries.push({
       id: `exp-${entries.length + 1}`,
       company,
       role: tidyLabel(roleMatch?.[1] || '') || headline,
-      startDate,
-      endDate: '',
-      current: relation === 'since',
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+      current: dates.current,
       bullets: sentenceAround(text, company),
     });
-    if (!startDate) {
+    if (!dates.startDate && !dates.endDate) {
       warnings.push({ code: 'UNCERTAIN_DATES', message: `Dates were not clearly detected for ${company}.`, fieldPath: `experience.${entries.length - 1}` });
     }
   }
@@ -415,13 +437,19 @@ function detectChineseExperience(text: string, entries: ResumeData['experience']
 }
 
 function datesNear(text: string): { startDate: string; endDate: string; current: boolean } {
-  const ranged = text.match(/(?:from|since)\s+((?:[A-Za-z]{3,9}\.?\s+)?\d{4})(?:\s+(?:to|until|through|-|–|—)\s+((?:[A-Za-z]{3,9}\.?\s+)?\d{4}|present|now))?/i);
+  const paren = text.match(/\((\d{4})\s*[-–—]\s*(\d{4}|present|now)\)/i);
+  if (paren) {
+    const current = /^(present|now)$/i.test(paren[2]);
+    return { startDate: paren[1], endDate: current ? '' : paren[2], current };
+  }
+
+  const ranged = text.match(/(?:from|since|in|during)\s+((?:[A-Za-z]{3,9}\.?\s+)?\d{4})(?:\s+(?:to|until|through|-|–|—)\s+((?:[A-Za-z]{3,9}\.?\s+)?\d{4}|present|now))?/i);
   if (ranged) {
     const current = !ranged[2] || /^(present|now)$/i.test(ranged[2]);
     return {
       startDate: ranged[1].trim(),
       endDate: current ? '' : ranged[2].trim(),
-      current: Boolean(current && /since|present|now/i.test(text)),
+      current: Boolean(current && /\b(?:since|present|now)\b/i.test(text)),
     };
   }
 
@@ -443,8 +471,8 @@ function sentenceAround(text: string, company: string): string[] {
   if (clauses.length > 0) return clauses;
   const escaped = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const sentence = text.match(new RegExp(`[^。\\n.]*${escaped}[^。\\n.]*[。.]?`))?.[0]?.trim();
-  if (!sentence || sentence.length < 12 || sentence.length > 240) return [];
-  return [sentence.replace(/\s+/g, ' ')];
+  if (!sentence || sentence.length < 12) return [];
+  return [clipWords(sentence.replace(/\s+/g, ' '), 220)];
 }
 
 function cleanPhrase(value: string): string {
@@ -488,12 +516,13 @@ function detectEducation(text: string, warnings: ResumeIntakeWarning[]): ResumeD
   for (const match of graduatedFrom) {
     const school = presentCompany(match[1].trim());
     if (!school || entries.some(entry => entry.school.toLowerCase() === school.toLowerCase())) continue;
-    const window = text.slice((match.index || 0) + match[0].length, (match.index || 0) + match[0].length + 160);
+    const window = text.slice((match.index || 0) + match[0].length, (match.index || 0) + match[0].length + 180);
     const degree = degreeAfterWith(window);
     entries.push({
       id: `edu-${entries.length + 1}`,
       school,
-      degree: tidyDegree(degree) || 'Degree',
+      degree: degree.degree || 'Degree',
+      ...(degree.endDate ? { endDate: degree.endDate } : {}),
     });
   }
 
@@ -507,9 +536,9 @@ function detectEducation(text: string, warnings: ResumeIntakeWarning[]): ResumeD
 function detectSkills(text: string, warnings: ResumeIntakeWarning[]): ResumeData['skills'] {
   const lowerText = text.toLowerCase();
   const detected = knownSkills.filter(skill => lowerText.includes(skill.toLowerCase()));
-  const listPattern = /(?:skills?\s+include|tools?\s+include|proficient in|familiar with|擅长|熟悉|技能(?:包括)?\s*[:：]|技术栈\s*[:：]|skills?\s*[:：]|tools?\s*[:：])\s*([^.]{2,240})/gi;
+  const listPattern = /(?:skills?\s+include|tools?\s+include|proficient in|proficient with|familiar with|skilled in|skilled with|擅长|熟悉|技能(?:包括)?\s*[:：]|技术栈\s*[:：]|technologies\s*[:：]|tech stack\s*[:：]|skills?\s*[:：]|tools?\s*[:：])\s*([^.]{2,240})/gi;
   for (const listed of text.matchAll(listPattern)) {
-    detected.push(...listed[1].split(/\s*(?:,\s*(?:and|及|与|和)\b|，|、|,|\band\b|及|与|和)\s*/i));
+    detected.push(...listed[1].split(/\s*(?:,\s*(?:and|及|与|和)\b|，|、|,|\/|;|\band\b|及|与|和)\s*/i));
   }
 
   const items = mergeSkillItems(detected);
@@ -545,6 +574,7 @@ function detectProjects(text: string): ResumeData['projects'] {
   const patterns = [
     /(?:side project|personal project|open[- ]source project|project)\s*[:：]\s*([^,.\n，。]{2,60})/gi,
     /(?:项目|开源项目)\s*[:：]\s*([^，。\n]{2,40})/g,
+    /\b(?:built|created|launched)\s+(?:the\s+)?([A-Z][A-Za-z0-9.+#-]{2,}(?:\s+[A-Z][A-Za-z0-9.+#-]{2,}){0,3})\b/g,
   ];
 
   for (const pattern of patterns) {
@@ -571,12 +601,12 @@ function buildSummary(text: string, headline: string, experience: ResumeData['ex
   const sentences = withoutIntro
     .split(/(?<=[.。])\s+/)
     .map(sentence => sentence.trim())
-    .filter(sentence => sentence.length >= 20 && !isContactResidue(sentence))
+    .filter(sentence => sentence.length >= 20 && !isContactResidue(sentence) && !isIdentitySentence(sentence))
     .slice(0, 2)
     .join(' ')
     .trim();
   const summary = capitalizeSentence(sentences);
-  if (summary.length >= 40 && !containsContactDetails(summary)) return summary.slice(0, 500);
+  if (summary.length >= 40 && !containsContactDetails(summary)) return clipWords(summary, 500);
 
   const skillText = skills[0]?.items.slice(0, 5).join(', ');
   const companyText = experience.map(entry => entry.company).filter(Boolean).slice(0, 2).join(' and ');
@@ -590,11 +620,19 @@ function buildSummary(text: string, headline: string, experience: ResumeData['ex
 function stripContactDetails(text: string): string {
   return text
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ')
-    .replace(/(?:\+|00)?\d[\d\s().-]{8,}\d/g, match => (match.replace(/\D/g, '').length >= 10 ? ' ' : match))
+    .replace(/(?:\+|00)?\s*\(?\s*\d[\d\s().-]{8,}\d\)?/g, match => {
+      const digits = match.replace(/\D/g, '');
+      return digits.length >= 10 && digits.length <= 15 ? ' ' : match;
+    })
+    .replace(/(?:^|\s)@[A-Za-z0-9._]+(?:\s+on\s+[A-Za-z][A-Za-z0-9]*)?/g, ' ')
     .replace(/https?:\/\/\S+/gi, ' ')
     .replace(/(?:linkedin|github|dribbble)\.com\/\S+/gi, ' ')
     .replace(/\b(?:e-?mail|phone|tel|mobile|邮箱|电话|微信)\b\s*[:：]?/gi, ' ')
+    .replace(/\(\s*[,.\s]*\)/g, ' ')
+    .replace(/\(\s*,+/g, ' ')
+    .replace(/,{2,}/g, ', ')
     .replace(/\s+([,.;。，])/g, '$1')
+    .replace(/(^|\s)[,;]+(?=\s|$)/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
@@ -620,9 +658,11 @@ function tidyLabel(value: string): string {
   return trimmed.replace(/\b[a-z]/g, char => char.toUpperCase());
 }
 
-function degreeAfterWith(window: string): string {
+const DEGREE_MONTH = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)';
+
+function degreeAfterWith(window: string): { degree: string; endDate: string } {
   const match = window.match(/^\s*with\s+([\s\S]+)/i);
-  if (!match?.[1]) return '';
+  if (!match?.[1]) return { degree: '', endDate: '' };
   const body = match[1];
   let end = body.length;
   for (let index = 0; index < body.length; index += 1) {
@@ -639,18 +679,29 @@ function degreeAfterWith(window: string): string {
       }
     }
   }
-  return body.slice(0, end).replace(/^(?:an?\s+)/i, '').trim();
+  const dated = splitDegreeDate(body.slice(0, end).replace(/^(?:an?\s+)/i, '').trim());
+  return { degree: tidyDegree(dated.degree), endDate: dated.endDate };
+}
+
+function splitDegreeDate(value: string): { degree: string; endDate: string } {
+  const dated = value.match(new RegExp(`^(.*?)\\s+in\\s+(${DEGREE_MONTH}\\.?\\s+\\d{4})$`, 'i'));
+  if (!dated) return { degree: value.trim(), endDate: '' };
+  return {
+    degree: dated[1].trim(),
+    endDate: dated[2].replace(/\./g, '').replace(/\s+/g, ' ').trim(),
+  };
 }
 
 function tidyDegree(value: string): string {
-  const trimmed = tidyLabel(value);
-  return trimmed.replace(/\b(?:b\.?s\.?|b\.?a\.?|m\.?s\.?|mba|ph\.?d\.?)\b/gi, match => {
-    const compact = match.replace(/\./g, '').toUpperCase();
-    if (compact === 'BS' || compact === 'BA' || compact === 'MS') return `${compact[0]}.${compact[1]}.`;
-    if (compact === 'MBA') return 'MBA';
-    if (compact === 'PHD') return 'Ph.D.';
-    return match;
-  });
+  const trimmed = cleanPhrase(value).replace(/^(?:an?\s+)/i, '');
+  if (!trimmed) return '';
+  return trimmed
+    .replace(/\b(ph)\.?\s*d\.?(?=\s|$|[,.])/gi, 'Ph.D.')
+    .replace(/\b([ABM])\.?\s*([SA])\.?(?=\s|$|[,.])/gi, (_match, first: string, second: string) => `${first.toUpperCase()}.${second.toUpperCase()}.`)
+    .replace(/\bmba\b/gi, 'MBA')
+    .replace(/\.{2,}/g, '.')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function mergeSkillItems(items: string[]): string[] {
@@ -670,6 +721,19 @@ function isContactResidue(sentence: string): boolean {
   return words.length < 12;
 }
 
+function isIdentitySentence(sentence: string): boolean {
+  return new RegExp(`^${nameToken}(?:\\s+${nameToken}){1,2},\\s+\\S`).test(sentence) && !/\$|\d/.test(sentence);
+}
+
+function clipWords(value: string, limit: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= limit) return trimmed;
+  const slice = trimmed.slice(0, limit + 1);
+  const boundary = slice.lastIndexOf(' ');
+  const clipped = boundary >= Math.floor(limit * 0.6) ? slice.slice(0, boundary) : trimmed.slice(0, limit);
+  return clipped.trim();
+}
+
 function capitalizeSentence(value: string): string {
   const trimmed = value.trim();
   return trimmed.replace(/^[a-z]/, char => char.toUpperCase());
@@ -686,13 +750,17 @@ function extractBulletsNearCompany(text: string, company: string): string[] {
   const clauses = nearbySentence
     .split(/,|;|\band\b/i)
     .map(clause => clause.trim())
-    .filter(clause => /\b(built|led|mentored|developed|implemented|created|shipped|owned|designed|improved)\b/i.test(clause));
+    .filter(clause => /\b(built|led|mentored|developed|implemented|created|shipped|owned|designed|improved|launched|closed|taught|wrote|grew|delivered|published|reduced|increased|migrated)\b/i.test(clause));
 
   return clauses.slice(0, 3).map(clause => sentenceCase(clause.replace(/^i\s+/i, '')));
 }
 
 function cleanCompany(company: string): string {
-  return company.replace(/\b(from|doing|building|until|to|now|present)\b.*$/i, '').replace(/\s+/g, ' ').trim();
+  return company
+    .replace(/\s+\bas\b[\s\S]*$/i, '')
+    .replace(/\b(from|doing|building|until|to|now|present)\b.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function normalizeField(field: string): string {

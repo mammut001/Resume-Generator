@@ -114,6 +114,44 @@ describe('resumeToTypst', () => {
     }
   });
 
+  it('keeps summary text and job bullets as separate list items in every public template', () => {
+    const templateIds = ['basic-resume', 'clean-professional', 'brilliant-cv', 'rendercv', 'modern-compact'];
+    const markers = [
+      'Led frontend architecture',
+      'Mentored 4 junior engineers',
+      'Built a reusable component library',
+    ];
+
+    for (const templateId of templateIds) {
+      const source = renderResumeToTypst(defaultResume, templateId, 'en');
+      const resolved = templateId === 'clean-professional' ? 'basic-resume' : templateId === 'modern-compact' ? 'rendercv' : templateId;
+      expect(source, templateId).toContain('Summary');
+      expect(source, templateId).toContain('Experience');
+      expect(source, templateId).toContain('Education');
+      expect(source, templateId).toContain('Skills');
+      expect(source, templateId).toContain('Projects');
+      expect(source, templateId).toContain(defaultResume.summary.slice(0, 24));
+      expect(source, templateId).not.toContain(`${markers[0]} • ${markers[1]}`);
+      expect(source, templateId).not.toContain(`• ${markers[0]} • ${markers[1]}`);
+
+      if (resolved === 'brilliant-cv') {
+        expect(source, templateId).toContain('description: list(');
+        expect(source, templateId).not.toMatch(/#cv-section\("Summary"\)\n\[/);
+        for (const marker of markers) {
+          expect(source, templateId).toContain(`[${marker}`);
+        }
+        expect(source.match(/description: list\(/g)?.length).toBeGreaterThanOrEqual(defaultResume.experience.length);
+      } else {
+        for (const marker of markers) {
+          expect(source, templateId).toContain(`- ${marker}`);
+        }
+      }
+    }
+
+    expect(renderResumeToTypst(defaultResume, 'clean-professional')).toBe(renderResumeToTypst(defaultResume, 'basic-resume'));
+    expect(renderResumeToTypst(defaultResume, 'modern-compact')).toBe(renderResumeToTypst(defaultResume, 'rendercv'));
+  });
+
   it('generates distinct Typst output for different templates', () => {
     const classic = renderResumeToTypst(defaultResume, 'clean-professional');
     const modern = renderResumeToTypst(defaultResume, 'modern-compact');

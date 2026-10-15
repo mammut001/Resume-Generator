@@ -376,6 +376,83 @@ Tools: Jira`;
     expect(draft.resume.summary.toLowerCase()).toContain('data tools');
   });
 
+  it('keeps an underscored name, a following headline, and a social handle', async () => {
+    const text = `Sam O'Neil_Test
+DevRel Engineer
+@samoneil on X | sam.oneil@example.com | (512) 555-0148 | Austin, TX
+
+SUMMARY
+Closes developer-led pipeline.
+
+EXPERIENCE
+DevRel Engineer — Ledgerly
+May 2021 – Present
+- Launched the sample app
+
+EDUCATION
+B.S. Electrical and Computer Engineering — University of Texas at Austin
+May 2020`;
+    const draft = await buildResumeDraftFromParagraph(text);
+
+    expect(draft.resume.personal.fullName).toBe("Sam O'Neil_Test");
+    expect(draft.resume.personal.headline).toBe('DevRel Engineer');
+    expect(draft.resume.personal.extraLink).toBe('@samoneil on X');
+    expect(draft.resume.personal.location).toBe('Austin, TX');
+    expect(draft.resume.personal.email).toBe('sam.oneil@example.com');
+    expect(draft.warnings.some(warning => warning.code === 'MISSING_NAME')).toBe(false);
+    expect(draft.resume.experience.map(entry => entry.company)).toContain('Ledgerly');
+  });
+
+  it('extracts heading-less prose without contact residue, truncated words, or a mangled degree', async () => {
+    const text = [
+      "Sam O'Neil_Test, DevRel Engineer in Austin, TX.",
+      '@samoneil on X.',
+      '(512) 555-0148,, sam.oneil@example.com.',
+      'He closed $3M in developer-led pipeline by teaching API design to product teams and writing the migration guide.',
+      `${'beta '.repeat(120)}review the draft carefully.`,
+      'He worked at Northwind as a Software Engineer from 2018 to 2021 and shipped the billing API.',
+      'He then joined Ledgerly as a DevRel Engineer from May 2021 to present and launched the sample app.',
+      'He graduated from the University of Texas at Austin with a B.S. in Electrical and Computer Engineering in May 2020.',
+      'Project: OpenAPI Diff, a CLI for breaking changes.',
+      'Skills: Python, Go, TypeScript, public speaking.',
+    ].join(' ');
+    const draft = await buildResumeDraftFromParagraph(text, {
+      baseUrl: 'https://gateway.example.com/v1',
+      apiKey: 'test-key',
+      model: 'MiniMax-M2.7',
+      fetchImpl: async () => new Response('unavailable', { status: 503 }),
+    });
+    const { resume } = draft;
+    const northwind = resume.experience.find(entry => entry.company === 'Northwind');
+    const ledgerly = resume.experience.find(entry => entry.company === 'Ledgerly');
+    const education = resume.education[0];
+
+    expect(draft.warnings.some(warning => warning.code === 'MISSING_NAME')).toBe(false);
+    expect(resume.personal.fullName).toBe("Sam O'Neil_Test");
+    expect(resume.personal.headline).toBe('DevRel Engineer');
+    expect(resume.personal.extraLink).toBe('@samoneil on X');
+    expect(resume.personal.location).toBe('Austin, TX');
+    expect(resume.summary).toContain('$3M in developer');
+    expect(resume.summary).not.toContain('(,,');
+    expect(resume.summary).not.toMatch(/\$3M in d(?!eveloper)/);
+    expect(resume.summary).not.toMatch(/@|555-0148|\(512\)/);
+    expect(resume.summary.split(/\s+/).at(-1)).toMatch(/^[A-Za-z0-9$.,]+$/);
+    expect(northwind?.role).toBe('Software Engineer');
+    expect(northwind?.startDate).toBe('2018');
+    expect(northwind?.endDate).toBe('2021');
+    expect(northwind?.bullets.join(' ')).toMatch(/billing API/i);
+    expect(ledgerly?.role).toBe('DevRel Engineer');
+    expect(ledgerly?.startDate).toBe('May 2021');
+    expect(ledgerly?.current).toBe(true);
+    expect(ledgerly?.bullets.join(' ')).toMatch(/sample app/i);
+    expect(education?.school).toBe('University of Texas at Austin');
+    expect(education?.degree).toBe('B.S. in Electrical and Computer Engineering');
+    expect(education?.endDate).toBe('May 2020');
+    expect(education?.degree).not.toMatch(/B\.S\.\.| In | And /);
+    expect(resume.skills.flatMap(group => group.items)).toEqual(expect.arrayContaining(['Python', 'Go', 'TypeScript', 'public speaking']));
+    expect(resume.projects.map(project => project.name)).toContain('OpenAPI Diff');
+  });
+
   it('extracts Chinese prose jobs and schools when the model gateway fails', async () => {
     const text = '我是李晓然，在字节跳动担任产品运营。2021 年至今就职于小红书。毕业于复旦大学。熟悉 Excel、SQL 和活动策划。li.xiaoran@email.com';
     const draft = await buildResumeDraftFromParagraph(text, {
