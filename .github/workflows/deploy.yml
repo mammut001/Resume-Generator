@@ -37,16 +37,14 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           cat > ~/.ssh/known_hosts <<'EOF'
-          |1|dsPACgx2oohoPK+7mwynfNEjbMQ=|FuqgW60uLgxJG66gHRGvFbe2SPw= ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC/BiWUgkehBHXAxmHJsfapaJTlGmBdmKMvRdE3U8iLHwL3/Idx1lzduGA2MruojnsPxeZZ4bhKt7Xpf4rUfY/hSLUc1ePRm8kYxXLJCc5i9/dPGfFKZRqwxErg1DKmo0pLyaxB46zpluyGJuC2Iws8ReKyWeuC02QgTQ42ebrFoG0RXIg2k0vraOG4CzyyLpagnoFaZ1C8bkLGxU9l8JrS63RGgdE0M+wLK4AkkM4YhG4Y+7po8IKKE5DbIw1vH1iW0GXjvmz+Z4eyncW6ggSuddZy4Np1jY7CrLASYfVu1RNXPfnHl2drH1Of+ZI696kTr+hUgEMQDkFTETeRE3rSs8D5ZmlAr8XTf+DOc1NVwqytP634PUc22j7DiNcrltHbRO2uh6ev7I6s0ME1tSM1B9JA2+SElRGItPoHdLXfwASIhSTmSBgYHhghdjnfwQFbt+Sp/TeSLxzhmlhIciTky+3UivX9ToNWWJwUvkSrCrXl/gmq+UScAm6H4R6zlws=
-          |1|k9AH0wtIT0ZfxJXFTQTizGMD+kw=|Hd6JOwpcXxEvcghU3o/UWpGG2Oc= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBGB0UU8k71x6q8M+lykxw6QDcwORBLkfHLV9+mJUXSByzvfgtU7B8hkcUePuEXfFEzKymyNqMuXMMxF77P2FwT0=
-          |1|o8D5nytACEPbkxjCv/UmObhewiw=|sKvPFfv4DQkFbsa39ahzvui80q4= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGiMrLXuvh0jnX74yB6DZnqJfBNBy1/Jpfo/6J9NiRuE
+          96.9.226.166 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFN9lPeuN1rYLiIOJDb8wUUe54xhEuiDJMAyLbU3CFXk
           EOF
           chmod 644 ~/.ssh/known_hosts
 
       - name: Sync commit and restart service
         env:
           DEPLOY_SHA: ${{ github.sha }}
-          VPS_HOST: 149.56.97.109
+          VPS_HOST: 96.9.226.166
           VPS_USER: ubuntu
         run: |
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
